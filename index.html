@@ -7,11 +7,11 @@
 <meta name="description" content="A gamified trainer for the IBA cocktail canon: pour, shake and garnish your way through 119 recipes, track your mistakes, beat the Martini boss.">
 <meta name="theme-color" content="#12100e">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
 <div id="app" aria-live="polite"></div>
@@ -24,7 +24,7 @@
   <a href="#/cellar"   data-tab="cellar"><span class="ico" aria-hidden="true">✎</span><span>Cellar</span></a>
 </nav>
 
-<script type="module" src="js/app.js"></script>
+<script type="module" src="app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
