@@ -4,12 +4,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initApp() {
     setupNavigation();
-    renderActiveView('library'); // Opens on Library by default
+    renderActiveView('library'); // Explicitly loads Library on startup
 }
 
 function setupNavigation() {
     const navButtons = document.querySelectorAll('.nav-tabbar .nav-btn');
-    
     if (!navButtons.length) return;
 
     navButtons.forEach(button => {
@@ -17,11 +16,9 @@ function setupNavigation() {
             const targetView = e.currentTarget.getAttribute('data-target');
             if (!targetView) return;
             
-            // Update active states on buttons
             navButtons.forEach(btn => btn.classList.remove('active'));
             e.currentTarget.classList.add('active');
             
-            // Switch view panels
             switchView(targetView);
         });
     });
@@ -29,10 +26,7 @@ function setupNavigation() {
 
 function switchView(viewName) {
     const panels = document.querySelectorAll('.app-content .view-panel');
-    
-    panels.forEach(panel => {
-        panel.classList.remove('active');
-    });
+    panels.forEach(panel => panel.classList.remove('active'));
     
     const activePanel = document.getElementById(`view-${viewName}`);
     if (activePanel) {
@@ -48,83 +42,94 @@ function renderActiveView(viewName) {
     switch (viewName) {
         case 'drill':
             panel.innerHTML = `
-                <div class="drill-container">
-                    <h2>Flashcard & Speed Drills</h2>
-                    <p class="section-desc">Test your muscle memory and recipe recall speed with timed flashcard challenges.</p>
-                    <div id="drill-content-area"></div>
+                <div class="drill-inner-view">
+                    <h2>⚡ Flashcard & Speed Drills</h2>
+                    <p class="subtitle">Timed recipe memory training and ingredient recall tests.</p>
+                    <div class="drill-controls">
+                        <button id="start-drill-btn" class="action-btn">Start Speed Drill</button>
+                    </div>
+                    <div id="drill-dynamic-area"></div>
                 </div>
             `;
             if (typeof window.loadDrillView === 'function') {
-                window.loadDrillView(panel.querySelector('#drill-content-area') || panel);
+                window.loadDrillView(panel.querySelector('#drill-dynamic-area'));
             }
             break;
 
         case 'library':
             panel.innerHTML = `
-                <div class="library-container">
-                    <h2>Recipe Library</h2>
-                    <p class="section-desc">Browse and search through all available cocktail recipes.</p>
-                    <div id="library-content-area"></div>
+                <div class="library-inner-view">
+                    <h2>📖 Recipe Library</h2>
+                    <p class="subtitle">Complete database of official IBA and classic cocktail specifications.</p>
+                    <div class="search-bar-container">
+                        <input type="text" id="recipe-search-input" placeholder="Search cocktails or ingredients..." />
+                    </div>
+                    <div id="library-list-area"></div>
                 </div>
             `;
             if (typeof window.loadLibraryView === 'function') {
-                window.loadLibraryView(panel.querySelector('#library-content-area') || panel);
+                window.loadLibraryView(panel.querySelector('#library-list-area'));
             }
             break;
 
         case 'explore':
             panel.innerHTML = `
-                <div class="explore-container">
-                    <h2>Cocktail Explorer</h2>
-                    <p class="section-desc">Discover new drinks grouped by base spirits, flavor profiles, and historic categories.</p>
-                    <div id="explore-content-area"></div>
+                <div class="explore-inner-view">
+                    <h2>🗺️ Cocktail Explorer</h2>
+                    <p class="subtitle">Discover drinks categorized by flavor profiles, glassware, and era.</p>
+                    <div class="filter-chips">
+                        <button class="chip" data-filter="sour">Sours</button>
+                        <button class="chip" data-filter="tiki">Tiki & Tropical</button>
+                        <button class="chip" data-filter="highball">Highballs</button>
+                    </div>
+                    <div id="explore-results-area"></div>
                 </div>
             `;
             if (typeof window.loadExploreView === 'function') {
-                window.loadExploreView(panel.querySelector('#explore-content-area') || panel);
+                window.loadExploreView(panel.querySelector('#explore-results-area'));
             }
             break;
 
         case 'play':
             panel.innerHTML = `
-                <div class="play-container">
-                    <h2>Mixology Round</h2>
-                    <p class="section-desc">Select your glass, pour ingredients, and build drinks to order.</p>
-                    <div id="play-content-area"></div>
+                <div class="play-inner-view">
+                    <h2>🍸 Mixology Pour Station</h2>
+                    <p class="subtitle">Pick your glassware, choose ingredients, and pour precise proportions.</p>
+                    <div id="play-station-area"></div>
                 </div>
             `;
             if (typeof window.loadPlayView === 'function') {
-                window.loadPlayView(panel.querySelector('#play-content-area') || panel);
+                window.loadPlayView(panel.querySelector('#play-station-area'));
             }
             break;
 
         case 'boss':
             panel.innerHTML = `
-                <div class="boss-container">
-                    <h2>The Martini Gauntlet (Boss Fight)</h2>
-                    <p class="section-desc">Face off against high-pressure customer orders and tricky variations.</p>
-                    <div id="boss-content-area"></div>
+                <div class="boss-inner-view">
+                    <h2>🥊 The Gauntlet (Boss Fight)</h2>
+                    <p class="subtitle">Handle rushed customer orders under strict time penalties.</p>
+                    <div id="boss-arena-area"></div>
                 </div>
             `;
             if (typeof window.loadBossView === 'function') {
-                window.loadBossView(panel.querySelector('#boss-content-area') || panel);
+                window.loadBossView(panel.querySelector('#boss-arena-area'));
             }
             break;
 
         case 'cellar':
-            panel.innerHTML = `
-                <div class="cellar-container">
-                    <h2>Cellar Log</h2>
-                    <p class="section-desc">Track your real-life bottle inventory, ingredient stock, and unlockable rewards.</p>
-                    <div id="cellar-content-area"></div>
+            panel.innerHHTML = `
+                <div class="cellar-inner-view">
+                    <h2>🍷 Cellar Log</h2>
+                    <p class="subtitle">Manage bottle inventory and track home bar supplies.</p>
+                    <div id="cellar-inventory-area"></div>
                 </div>
             `;
             if (typeof window.loadCellarView === 'function') {
-                window.loadCellarView(panel.querySelector('#cellar-content-area') || panel);
+                window.loadCellarView(panel.querySelector('#cellar-inventory-area'));
             }
             break;
 
         default:
-            panel.innerHTML = `<p>View not found.</p>`;
+            panel.innerHTML = `<p>View not loaded.</p>`;
     }
 }
