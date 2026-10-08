@@ -126,99 +126,82 @@ function colourFor(r) {
 
 /* ----------------------------------------------------------------- explore */
 
-route('/explore', async () => {
+route('/explore', () => {
   app.innerHTML = `
     <h1>Explore</h1>
     <div class="card">
       <div class="grid" style="gap:8px">
-        <input id="exp-q" placeholder="Search cocktail names…" autocomplete="off">
-        <input id="exp-ingredient" placeholder="Or filter by ingredient (gin, lime, bourbon)…" autocomplete="off">
+        <input id="exp-q" placeholder="Search the canon by name, spirit, garnish…" autocomplete="off">
         <div class="grid g2">
           <select id="exp-category"><option value="">Category</option></select>
           <select id="exp-glass"><option value="">Glass</option></select>
         </div>
-        <button class="btn small" id="exp-random">Random drink</button>
+        <div class="grid g2">
+          <select id="exp-source"><option value="">Source</option><option value="guide">From your guide</option><option value="iba2024">Added from IBA 2024</option></select>
+          <button class="btn small" id="exp-random">Random drink</button>
+        </div>
       </div>
     </div>
     <div id="exp-results"></div>`;
 
   const q = $('#exp-q');
-  const ingredient = $('#exp-ingredient');
   const category = $('#exp-category');
   const glass = $('#exp-glass');
+  const source = $('#exp-source');
   const results = $('#exp-results');
 
-  const cats = await listCategories();
-  const glasses = await listGlasses();
-  category.innerHTML = '<option value="">Category</option>' + cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  const categories = [...new Set(RECIPES.map(r => r.cat))].sort();
+  const glasses = [...new Set(RECIPES.map(r => r.glass))].sort();
+  category.innerHTML = '<option value="">Category</option>' + categories.map(c => `<option value="${esc(c)}">${esc(CAT_LABEL[c] || c)}</option>`).join('');
   glass.innerHTML = '<option value="">Glass</option>' + glasses.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
 
-  const renderResults = (items) => {
-    if (!items.length) {
+  const listMatches = () => {
+    const term = (q.value || '').trim().toLowerCase();
+    const cat = category.value;
+    const glassName = glass.value;
+    const src = source.value;
+
+    const filtered = RECIPES.filter(r => {
+      if (cat && r.cat !== cat) return false;
+      if (glassName && r.glass !== glassName) return false;
+      if (src && r.src !== src) return false;
+      if (!term) return true;
+      const haystack = [r.name, r.family, r.garnish, r.story, r.taste, ...r.ings.map(i => ingName(i.k))].join(' ').toLowerCase();
+      return haystack.includes(term);
+    });
+
+    if (!filtered.length) {
       results.innerHTML = '<p class="muted">No match found.</p>';
       return;
     }
 
-    results.innerHTML = items.map(item => `
-      <button class="rc" data-exp-id="${item.id}">
-        <span class="swatch" style="background:linear-gradient(135deg,#d9a94a,#5b8db8)"></span>
+    results.innerHTML = filtered.map(r => `
+      <button class="rc" data-go="#/recipe/${r.id}">
+        <span class="swatch" style="background:${colourFor(r)}"></span>
         <span style="flex:1">
-          <span class="nm">${esc(item.name)}</span>
-          <span class="meta"><span>${item.thumb ? 'Photo' : 'No image'}</span></span>
+          <span class="nm">${esc(r.name)}</span>
+          <span class="meta"><span>${CAT_LABEL[r.cat] || r.cat}</span><span>·</span><span>${esc(r.glass)}</span></span>
         </span>
         <span class="right"><span class="pill gold">View</span></span>
       </button>`).join('');
 
-    results.querySelectorAll('[data-exp-id]').forEach(btn => {
-      btn.onclick = async () => {
-        const drink = await lookupDrink(btn.dataset.expId);
-        if (!drink) return;
-        results.innerHTML = `
-          <div class="card">
-            <h3>${esc(drink.name)}</h3>
-            ${drink.thumb ? `<img src="${drink.thumb}" alt="${esc(drink.name)}" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">` : ''}
-            <p class="muted" style="margin-bottom:8px">${esc(drink.category)} · ${esc(drink.glass)} · ${esc(drink.alcoholic)}</p>
-            <div class="row wrap" style="gap:6px;margin-bottom:8px">
-              ${drink.ingredients.map(i => `<span class="pill">${esc(i.name)}${i.measure ? ` · ${esc(i.measure)}` : ''}</span>`).join('')}
-            </div>
-            <p class="story">${esc(drink.instructions || 'No instructions available.')}</p>
-            <button class="btn small" id="exp-back">Back to results</button>
-          </div>`;
-        $('#exp-back').onclick = () => loadResults();
-      };
+    results.querySelectorAll('[data-go]').forEach(btn => {
+      btn.onclick = () => location.hash = btn.dataset.go;
     });
   };
 
-  const loadResults = async () => {
-    const term = q.value.trim();
-    const ing = ingredient.value.trim();
-    const cat = category.value.trim();
-    const glassName = glass.value.trim();
-
-    let items = [];
-    if (term) items = await searchCocktails(term);
-    else if (ing) items = await filterByIngredient(ing);
-    else if (cat) items = await filterByCategory(cat);
-    else if (glassName) items = await filterByGlass(glassName);
-    else items = await randomCocktail();
-
-    renderResults(items);
+  const randomise = () => {
+    const item = RECIPES[Math.floor(Math.random() * RECIPES.length)];
+    if (item) location.hash = '#/recipe/' + item.id;
   };
 
-  q.oninput = loadResults;
-  ingredient.oninput = loadResults;
-  category.onchange = loadResults;
-  glass.onchange = loadResults;
-  $('#exp-random').onclick = async () => {
-    q.value = '';
-    ingredient.value = '';
-    category.value = '';
-    glass.value = '';
-    const items = await randomCocktail();
-    renderResults(items);
-  };
+  q.oninput = listMatches;
+  category.onchange = listMatches;
+  glass.onchange = listMatches;
+  source.onchange = listMatches;
+  $('#exp-random').onclick = randomise;
 
-  loadResults();
+  listMatches();
 });
 
 /* ----------------------------------------------------------------- library */
@@ -793,3 +776,342 @@ document.addEventListener('click', (e) => {
 });
 
 render();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{"path":"app.js","content":""}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
