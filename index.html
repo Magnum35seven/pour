@@ -1,35 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Pour — Learn 119 Cocktails</title>
-<meta name="description" content="A gamified trainer for the IBA cocktail canon: pour, shake and garnish your way through 119 recipes, track your mistakes, beat the Martini boss.">
-<meta name="theme-color" content="#12100e">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="stylesheet" href="app.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pour — Bartender Cocktail Trainer</title>
+    <link rel="stylesheet" href="app.css">
+    <link rel="manifest" href="manifest.webmanifest">
 </head>
 <body>
-<nav id="tabbar" role="navigation" aria-label="Primary">
-  <a href="#/drill"    data-tab="drill"><span class="ico" aria-hidden="true">◍</span><span>Drill</span></a>
-  <a href="#/library"  data-tab="library"><span class="ico" aria-hidden="true">☰</span><span>Library</span></a>
-  <a href="#/explore"  data-tab="explore"><span class="ico" aria-hidden="true">⌕</span><span>Explore</span></a>
-  <a href="#/boss"     data-tab="boss"><span class="ico" aria-hidden="true">♛</span><span>Boss</span></a>
-  <a href="#/stats"    data-tab="stats"><span class="ico" aria-hidden="true">◔</span><span>Mistakes</span></a>
-  <a href="#/cellar"   data-tab="cellar"><span class="ico" aria-hidden="true">✎</span><span>Cellar</span></a>
-</nav>
+    <div id="app">
+        <!-- Top Navigation / Menu Tabbar -->
+        <header class="app-header">
+            <h1>Pour</h1>
+            <nav class="nav-tabbar" id="nav-tabbar">
+                <button class="nav-btn active" data-target="drill">Drill</button>
+                <button class="nav-btn" data-target="library">Library</button>
+                <button class="nav-btn" data-target="explore">Explore</button>
+                <button class="nav-btn" data-target="play">Play</button>
+                <button class="nav-btn" data-target="boss">Boss</button>
+                <button class="nav-btn" data-target="cellar">Cellar</button>
+            </nav>
+        </header>
 
-<div id="app" aria-live="polite"></div>
+        <!-- Main Content Views -->
+        <main class="app-content">
+            <section id="view-drill" class="view-panel active"></section>
+            <section id="view-library" class="view-panel"></section>
+            <section id="view-explore" class="view-panel"></section>
+            <section id="view-play" class="view-panel"></section>
+            <section id="view-boss" class="view-panel"></section>
+            <section id="view-cellar" class="view-panel"></section>
+        </main>
+    </div>
 
-<script type="module" src="app.js"></script>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
-  }
-</script>
+    <!-- Application Modules -->
+    <script src="data.js"></script>
+    <script src="cocktaildb.js"></script>
+    <script src="game.js"></script>
+    <script src="boss.js"></script>
+    <script src="store.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
