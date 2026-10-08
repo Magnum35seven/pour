@@ -1,5 +1,5 @@
 /* Offline-first service worker. App shell + data are precached; everything else
-   falls back to cache-first then network. */
+   falls back to cache-first then network.. */
 const VERSION = `pour-${Date.now()}`;
 const SHELL = [
   './',
