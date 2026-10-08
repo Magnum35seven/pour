@@ -25,7 +25,16 @@
         <!-- Main Content Views -->
         <main class="app-content">
             <section id="view-drill" class="view-panel"></section>
-            <section id="view-library" class="view-panel active"></section>
+            <section id="view-library" class="view-panel active">
+                <div class="library-inner-view">
+                    <h2>📖 Recipe Library</h2>
+                    <p class="subtitle">Complete database of official IBA and classic cocktail specifications.</p>
+                    <div class="search-bar-container">
+                        <input type="text" id="recipe-search-input" placeholder="Search cocktails or ingredients (e.g. vodka, rum)..." />
+                    </div>
+                    <div id="library-list-area"></div>
+                </div>
+            </section>
             <section id="view-explore" class="view-panel"></section>
             <section id="view-play" class="view-panel"></section>
             <section id="view-boss" class="view-panel"></section>
