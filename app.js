@@ -1,166 +1,94 @@
-document.addEventListener('DOMContentLoaded', () => {
-    initApp();
+/* Router, views and the pour minigame. No framework, no build step. */
+import { RECIPES, INGREDIENTS, BUILD } from './data.js';
+import { buildStages, gradePour, pourScale, GLASS_LABEL, ICE_LABEL, VESSEL_LABEL,
+         STRAIN_LABEL, TECH_LABEL, ingName, unitLabel } from './game.js';
+import { buildBoss, BOSS_HP, ROSTER } from './boss.js';
+import * as DB from './store.js';
+
+const $ = (s, r = document) => r.querySelector(s);
+const app = $('#app');
+const byId = Object.fromEntries(RECIPES.map(r => [r.id, r]));
+DB.load();
+
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function toast(msg) {
+  let t = $('#toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1900);
+}
+
+function flash() {
+  const f = document.createElement('div'); f.className = 'flash';
+  document.body.appendChild(f); setTimeout(() => f.remove(), 420);
+}
+
+const CAT_LABEL = { unforgettables: 'The Unforgettables', contemporary: 'Contemporary Classics',
+                    newera: 'New Era Drinks', noniba: 'Non-IBA classics' };
+
+/* ------------------------------------------------------------------ router */
+
+const routes = {};
+function route(path, fn) { routes[path] = fn; }
+
+function render() {
+  const h = location.hash.replace(/^#/, '') || '/drill';
+  const [path, ...rest] = h.split('/').filter(Boolean);
+  const key = '/' + (path || 'drill');
+  const fn = routes[key] || routes['/drill'];
+  document.querySelectorAll('#tabbar a').forEach(a =>
+    a.classList.toggle('on', a.getAttribute('href') === '#' + key ||
+      (key === '/recipe' || key === '/play') && a.dataset.tab === 'library'));
+  window.scrollTo(0, 0);
+  fn(...rest);
+}
+window.addEventListener('hashchange', render);
+
+/* ------------------------------------------------------------------- drill */
+
+route('/drill', () => {
+  const lv = DB.level();
+  const acc = DB.accuracy();
+  const q = DB.drillQueue(RECIPES, 8);
+  const st = DB.S();
+  app.innerHTML = `
+    <h1>Pour</h1>
+    <p class="muted">${BUILD.total} cocktails in the canon.</p>
+
+    <div class="card">
+      <div class="spread">
+        <div><div class="dim" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Rank</div>
+          <div style="font-size:1.5rem;font-weight:700">${rankName(lv.lvl)}</div></div>
+        <div style="text-align:right"><div class="dim" style="font-size:.72rem">XP</div>
+          <div style="font-size:1.5rem;font-weight:700;color:var(--amber)">${lv.xp.toLocaleString()}</div></div>
+      </div>
+      <div class="bar" style="margin-top:9px"><i style="width:${lv.pct}%"></i></div>
+      <div class="spread" style="margin-top:9px;font-size:.78rem;color:var(--ink3)">
+        <span>${lv.into} / ${lv.need} XP to next rank</span>
+        <span>Decision accuracy ${acc.ans}% · Pour accuracy ${acc.pour}%</span>
+      </div>
+    </div>
+
+    <h2 style="margin-top:16px">Practise this</h2>
+    <p class="muted" style="font-size:.85rem">Chosen from what you've never tried and where you keep
+      making the same mistake.</p>
+    ${q.map(r => recipeRow(r)).join('')}
+
+    <div class="card" style="margin-top:16px">
+      <h3>Badges</h3>
+      <div class="grid g2" style="gap:6px">
+        ${Object.entries(DB.BADGE_INFO).map(([id, [ic, nm, dsc]]) =>
+          `<div style="opacity:${st.badges.includes(id) ? 1 : .32};padding:6px 0">
+             <b>${ic} ${esc(nm)}</b><div class="dim" style="font-size:.74rem">${esc(dsc)}</div></div>`).join('')}
+      </div>
+    </div>
+    <p class="dim" style="font-size:.76rem;margin-top:14px">Drink responsibly. The absolute alcohol
+      figures in this app are there so you can judge what you're actually serving.</p>`;
 });
 
-function initApp() {
-    setupNavigation();
-    renderActiveView('library'); // Explicitly loads Library on startup
-}
-
-function setupNavigation() {
-    const navButtons = document.querySelectorAll('.nav-tabbar .nav-btn');
-    if (!navButtons.length) return;
-
-    navButtons.forEach(button => {
-        button.addEventListener('click', (e) => {
-            const targetView = e.currentTarget.getAttribute('data-target');
-            if (!targetView) return;
-            
-            navButtons.forEach(btn => btn.classList.remove('active'));
-            e.currentTarget.classList.add('active');
-            
-            switchView(targetView);
-        });
-    });
-}
-
-function switchView(viewName) {
-    const panels = document.querySelectorAll('.app-content .view-panel');
-    panels.forEach(panel => panel.classList.remove('active'));
-    
-    const activePanel = document.getElementById(`view-${viewName}`);
-    if (activePanel) {
-        activePanel.classList.add('active');
-        renderActiveView(viewName);
-    }
-}
-
-function renderActiveView(viewName) {
-    const panel = document.getElementById(`view-${viewName}`);
-    if (!panel) return;
-
-    switch (viewName) {
-        case 'drill':
-            panel.innerHTML = `
-                <div class="drill-inner-view">
-                    <h2>⚡ Flashcard & Speed Drills</h2>
-                    <p class="subtitle">Timed recipe memory training and ingredient recall tests.</p>
-                    <div class="drill-controls">
-                        <button id="start-drill-btn" class="action-btn">Start Speed Drill</button>
-                    </div>
-                    <div id="drill-dynamic-area"></div>
-                </div>
-            `;
-            if (typeof window.loadDrillView === 'function') {
-                window.loadDrillView(panel.querySelector('#drill-dynamic-area'));
-            }
-            break;
-
-        case 'library':
-            panel.innerHTML = `
-                <div class="library-inner-view">
-                    <h2>📖 Recipe Library</h2>
-                    <p class="subtitle">Complete database of official IBA and classic cocktail specifications.</p>
-                    <div class="search-bar-container">
-                        <input type="text" id="recipe-search-input" placeholder="Search cocktails or ingredients (e.g. vodka, rum)..." />
-                    </div>
-                    <div id="library-list-area"></div>
-                </div>
-            `;
-            
-            // Hook up search listener and load library view safely
-            setupLibrarySearch();
-            if (typeof window.loadLibraryView === 'function') {
-                window.loadLibraryView(panel.querySelector('#library-list-area'));
-            }
-            break;
-
-        case 'explore':
-            panel.innerHTML = `
-                <div class="explore-inner-view">
-                    <h2>🗺️ Cocktail Explorer</h2>
-                    <p class="subtitle">Discover drinks categorized by flavor profiles, glassware, and era.</p>
-                    <div class="filter-chips">
-                        <button class="chip" data-filter="sour">Sours</button>
-                        <button class="chip" data-filter="tiki">Tiki & Tropical</button>
-                        <button class="chip" data-filter="highball">Highballs</button>
-                    </div>
-                    <div id="explore-results-area"></div>
-                </div>
-            `;
-            if (typeof window.loadExploreView === 'function') {
-                window.loadExploreView(panel.querySelector('#explore-results-area'));
-            }
-            break;
-
-        case 'play':
-            panel.innerHTML = `
-                <div class="play-inner-view">
-                    <h2>🍸 Mixology Pour Station</h2>
-                    <p class="subtitle">Pick your glassware, choose ingredients, and pour precise proportions.</p>
-                    <div id="play-station-area"></div>
-                </div>
-            `;
-            if (typeof window.loadPlayView === 'function') {
-                window.loadPlayView(panel.querySelector('#play-station-area'));
-            }
-            break;
-
-        case 'boss':
-            panel.innerHTML = `
-                <div class="boss-inner-view">
-                    <h2>🥊 The Gauntlet (Boss Fight)</h2>
-                    <p class="subtitle">Handle rushed customer orders under strict time penalties.</p>
-                    <div id="boss-arena-area"></div>
-                </div>
-            `;
-            if (typeof window.loadBossView === 'function') {
-                window.loadBossView(panel.querySelector('#boss-arena-area'));
-            }
-            break;
-
-        case 'cellar':
-            panel.innerHTML = `
-                <div class="cellar-inner-view">
-                    <h2>🍷 Cellar Log</h2>
-                    <p class="subtitle">Manage bottle inventory and track home bar supplies.</p>
-                    <div id="cellar-inventory-area"></div>
-                </div>
-            `;
-            if (typeof window.loadCellarView === 'function') {
-                window.loadCellarView(panel.querySelector('#cellar-inventory-area'));
-            }
-            break;
-
-        default:
-            panel.innerHTML = `<p>View not loaded.</p>`;
-    }
-}
-
-/**
- * Attaches real-time search filtering to the library search input.
- * Works seamlessly with existing global recipe sources (window.allRecipes, window.recipes, etc.)
- */
-function setupLibrarySearch() {
-    const searchInput = document.getElementById('recipe-search-input');
-    if (!searchInput) return;
-
-    searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase().trim();
-        
-        // Retrieve recipes from whichever global variable your app uses
-        const recipes = window.allRecipes || window.recipes || window. cocktailDatabase || [];
-        if (!recipes.length) return;
-
-        const filtered = recipes.filter(recipe => {
-            if (!query) return true;
-            const terms = recipe.searchTerms || `${recipe.name} ${recipe.cat} ${recipe.story || ''}`.toLowerCase();
-            return terms.includes(query);
-        });
-
-        const listArea = document.getElementById('library-list-area');
-        if (listArea && typeof window.loadLibraryView === 'function') {
-            window.loadLibraryView(listArea, filtered);
-        }
-    });
+function rankName(l) {
+  return ['Barback', 'Bartender', 'Barback no more', 'Chef de Partie', 'Head Bartender',
+          'Bar Manager', 'Brand Ambassador', 'Legend'][Math.min(7, Math.floor((l - 1) / 2))];
 }

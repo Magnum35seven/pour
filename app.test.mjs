@@ -33,7 +33,7 @@ const ok = (name, cond, extra = '') => {
 };
 const nav = async (h) => {
   if (location.hash !== h) location.hash = h;
-  await sleep(20);
+  await sleep(20);                       // let jsdom's own hashchange land
   dom.window.dispatchEvent(new dom.window.Event('hashchange'));
   await sleep(10);
 };
@@ -73,16 +73,6 @@ ok('search filters', $$('#list .rc').length > 0 && $$('#list .rc').length < RECI
 $('#q').value = 'zzzznothing';
 $('#q').dispatchEvent(new dom.window.Event('input'));
 ok('empty search says so', $('#list').textContent.includes('Nothing matches'));
-
-await nav('#/explore');
-ok('explore view renders its own local catalogue',
-  $('#app').textContent.includes('Explore') && !$('#app').textContent.includes('Rank') && $$('#app .rc').length > 0,
-  `${$$('#app .rc').length} results`);
-$('#exp-q').value = 'mezcal';
-$('#exp-q').dispatchEvent(new dom.window.Event('input'));
-ok('explore filters the local recipe set',
-  $$('#app .rc').length > 0 && $$('#app .rc').length < RECIPES.length,
-  `${$$('#app .rc').length}/${RECIPES.length}`);
 
 await nav('#/recipe/dry-martini');
 ok('recipe detail shows ABV panel', $('#app').innerHTML.includes('Absolute alcohol'));
@@ -190,6 +180,8 @@ ok('stats shows drill suggestions', $$('#app .rc').length > 0);
     stages.filter(s => s.type === 'choice').every(s => s.options.filter(o => o.ok).length === 1));
   ok('every choice stage has >=3 options',
     stages.filter(s => s.type === 'choice').every(s => s.options.length >= 3));
+  // regression: technique entries are emitted as {t, s}; reading {id, secs}
+  // silently produced an empty method question with no distractors.
   const methodStage = stages.find(s2 => s2.q === 'How do you mix it?');
   ok('method question has a real label', !!methodStage &&
     methodStage.options.every(o => o.label && o.label.length > 1),
@@ -213,6 +205,8 @@ ok('stats shows drill suggestions', $$('#app .rc').length > 0);
 
 /* ------------------------------------------------------------------ mastery */
 {
+  // regression: pct was computed as Math.round((best/100)*1.0), which collapses
+  // any best 1-99 to 0 or 1 instead of a real percentage.
   ok('mastery pct reflects best score, not a collapsed 0/1',
     DB.mastery('negroni').pct > 1, `pct=${DB.mastery('negroni').pct}, best=${DB.S().rounds['negroni'].best}`);
 }
@@ -232,6 +226,7 @@ ok('stats shows drill suggestions', $$('#app .rc').length > 0);
   ok('boss landing renders', $('#app').textContent.includes('Martini Gauntlet') && !!$('#start'));
   $('#start').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
   ok('boss starts with a question', $$('#app .opt').length >= 2);
+  // answer every question correctly -> boss should die
   const click = (el) => el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
   for (let n = 0; n < 40; n++) {
     if (/gauntlet falls|It survives/.test($('#app').textContent)) break;
