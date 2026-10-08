@@ -158,3 +158,91 @@ export function buildStages(recipe, opts = {}) {
       .filter(v => v !== right).slice(0, 3);
     stages.push({
       type: 'choice', key: 'wrong-duration', weight: 100,
+      q: `How long do you ${timed.t}?`,
+      options: shuffle([
+        { v: right, label: `${right} seconds`, ok: true },
+        ...wrongs.map(v => ({ v, label: `${v} seconds`, ok: false })),
+      ]),
+    });
+  }
+
+  stages.push({
+    type: 'choice', key: 'wrong-strain', weight: 100,
+    q: 'How do you strain it into the glass?',
+    options: shuffle([
+      { v: recipe.strain, label: STRAIN_LABEL[recipe.strain] || recipe.strain, ok: true },
+      ...distractors(Object.keys(STRAIN_LABEL), recipe.strain, 3)
+        .map(v => ({ v, label: STRAIN_LABEL[v], ok: false })),
+    ]),
+  });
+
+  const garnishes = [...new Set(all.map(r => r.garnish).filter(Boolean))];
+  const g = recipe.garnish || 'None';
+  stages.push({
+    type: 'choice', key: 'wrong-garnish', weight: 100,
+    q: 'Garnish?',
+    options: shuffle([
+      { v: g, label: shortGarnish(g), ok: true },
+      ...distractors(garnishes, recipe.garnish, 3).map(v => ({ v, label: shortGarnish(v), ok: false })),
+    ]),
+  });
+
+  return stages;
+}
+
+function shortGarnish(g) {
+  if (!g) return 'None';
+  return g.length > 42 ? g.slice(0, 40) + '…' : g;
+}
+
+function prepLabel(t, recipe) {
+  switch (t) {
+    case 'muddle': return 'Muddle';
+    case 'rinse': return 'Rinse the glass';
+    case 'rim': return 'Salt or sugar the rim';
+    case 'soak': return 'Soak the sugar cube in bitters';
+    case 'clap': return 'Clap the herbs';
+    case 'dry-shake': return 'Dry shake (no ice yet)';
+    case 'swizzle': return 'Swizzle';
+    case 'layer': return 'Layer the ingredients';
+    default: return TECH_LABEL[t] || t;
+  }
+}
+
+/* -------------------------------------------------------------- pour scale */
+
+export function pourScale(i) {
+  const q = i.q == null ? (i.ml || 100) : i.q;
+  const u = i.u;
+  const maxFor = { ml: 130, dash: 4, drop: 5, pinch: 3, tsp: 3, barspoon: 2, cube: 2, count: 8 };
+  let max = maxFor[u] || 130;
+  if (u === 'ml' || u === 'top') max = Math.max(130, Math.ceil(q / 25) * 25 + 25);
+  return { target: q, max, unit: u };
+}
+
+/* ------------------------------------------------------------- evaluation */
+
+export function gradePour(stage, value) {
+  const { target, max } = pourScale(stage.ing);
+  const tol = Math.max(max * 0.03, target * 0.03);
+  const diff = value - target;
+  const ad = Math.abs(diff);
+  let band, factor;
+  if (ad <= tol) { band = 'perfect'; factor = 1; }
+  else if (ad <= tol * 2.5) { band = 'good'; factor = 0.65; }
+  else if (ad <= tol * 5) { band = 'ok'; factor = 0.3; }
+  else { band = 'miss'; factor = 0; }
+  return {
+    band, factor, diff: Math.round(diff * 10) / 10, target,
+    points: Math.round(stage.weight * factor),
+    label: { perfect: 'Dead on', good: 'Close', ok: 'Sloppy', miss: 'Spilled it' }[band],
+  };
+}
+
+export const POINT_PERFECT = (stage) => stage.weight;
+
+export function totalPossible(recipe, stages) {
+  return stages.reduce((a, s) => a + s.weight, 0);
+}
+
+export { shuffle, pick };
