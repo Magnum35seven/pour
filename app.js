@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initApp() {
     setupNavigation();
-    renderActiveView('drill'); // Default view on load
+    renderActiveView('library'); // Default view on load is now Library
 }
 
 function setupNavigation() {
