@@ -117,7 +117,7 @@ function renderActiveView(viewName) {
             break;
 
         case 'cellar':
-            panel.innerHHTML = `
+            panel.innerHTML = `
                 <div class="cellar-inner-view">
                     <h2>🍷 Cellar Log</h2>
                     <p class="subtitle">Manage bottle inventory and track home bar supplies.</p>
