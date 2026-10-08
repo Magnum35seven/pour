@@ -4,15 +4,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initApp() {
     setupNavigation();
-    renderActiveView('library'); // Default view on load remains Library
+    renderActiveView('library'); // Opens on Library by default
 }
 
 function setupNavigation() {
     const navButtons = document.querySelectorAll('.nav-tabbar .nav-btn');
     
+    if (!navButtons.length) return;
+
     navButtons.forEach(button => {
         button.addEventListener('click', (e) => {
             const targetView = e.currentTarget.getAttribute('data-target');
+            if (!targetView) return;
             
             // Update active states on buttons
             navButtons.forEach(btn => btn.classList.remove('active'));
@@ -42,7 +45,6 @@ function renderActiveView(viewName) {
     const panel = document.getElementById(`view-${viewName}`);
     if (!panel) return;
 
-    // Distinct markup and handlers for Drill vs Explore vs other views
     switch (viewName) {
         case 'drill':
             panel.innerHTML = `
