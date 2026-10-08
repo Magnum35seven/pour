@@ -62,11 +62,15 @@ function renderActiveView(viewName) {
                     <h2>📖 Recipe Library</h2>
                     <p class="subtitle">Complete database of official IBA and classic cocktail specifications.</p>
                     <div class="search-bar-container">
-                        <input type="text" id="recipe-search-input" placeholder="Search cocktails or ingredients..." />
+                        <input type="text" id="recipe-search-input" placeholder="Search cocktails or ingredients (e.g. vodka, rum)..." />
                     </div>
                     <div id="library-list-area"></div>
                 </div>
             `;
+            
+            // Wire up the live search listener for the Library view
+            setupLibrarySearch();
+
             if (typeof window.loadLibraryView === 'function') {
                 window.loadLibraryView(panel.querySelector('#library-list-area'));
             }
@@ -132,4 +136,35 @@ function renderActiveView(viewName) {
         default:
             panel.innerHTML = `<p>View not loaded.</p>`;
     }
+}
+
+/**
+ * Attaches real-time search filtering to the library search input.
+ * Looks for matches in the recipe's searchTerms property (names, categories, ingredients, story).
+ */
+function setupLibrarySearch() {
+    const searchInput = document.getElementById('recipe-search-input');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        
+        // Check if global recipes database exists (usually loaded via data.js or cocktaildb.js)
+        const recipes = window.allRecipes || window.recipes || [];
+        if (!recipes.length) return;
+
+        const filtered = recipes.filter(recipe => {
+            if (!query) return true;
+            // Matches against the combined searchTerms field or falls back to name/category check
+            const terms = recipe.searchTerms || `${recipe.name} ${recipe.cat} ${recipe.story || ''}`.toLowerCase();
+            return terms.includes(query);
+        });
+
+        // Re-render the library list area with filtered results if the view loader supports it,
+        // or trigger your existing library rendering function with the filtered subset.
+        const listArea = document.getElementById('library-list-area');
+        if (listArea && typeof window.loadLibraryView === 'function') {
+            window.loadLibraryView(listArea, filtered);
+        }
+    });
 }
