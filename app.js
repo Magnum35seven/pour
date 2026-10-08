@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initApp() {
     setupNavigation();
-    renderActiveView('library'); // Default view on load is now Library
+    renderActiveView('library'); // Default view on load remains Library
 }
 
 function setupNavigation() {
@@ -42,44 +42,86 @@ function renderActiveView(viewName) {
     const panel = document.getElementById(`view-${viewName}`);
     if (!panel) return;
 
-    // Clear and populate based on active view to prevent empty index states
+    // Distinct markup and handlers for Drill vs Explore vs other views
     switch (viewName) {
         case 'drill':
-            panel.innerHTML = `<h2>Daily Drill</h2><p>Loading your training queue...</p>`;
+            panel.innerHTML = `
+                <div class="drill-container">
+                    <h2>Flashcard & Speed Drills</h2>
+                    <p class="section-desc">Test your muscle memory and recipe recall speed with timed flashcard challenges.</p>
+                    <div id="drill-content-area"></div>
+                </div>
+            `;
             if (typeof window.loadDrillView === 'function') {
-                window.loadDrillView(panel);
+                window.loadDrillView(panel.querySelector('#drill-content-area') || panel);
             }
             break;
+
         case 'library':
-            panel.innerHTML = `<h2>Recipe Library</h2><p>Browse all available cocktail recipes.</p>`;
+            panel.innerHTML = `
+                <div class="library-container">
+                    <h2>Recipe Library</h2>
+                    <p class="section-desc">Browse and search through all available cocktail recipes.</p>
+                    <div id="library-content-area"></div>
+                </div>
+            `;
             if (typeof window.loadLibraryView === 'function') {
-                window.loadLibraryView(panel);
+                window.loadLibraryView(panel.querySelector('#library-content-area') || panel);
             }
             break;
+
         case 'explore':
-            panel.innerHTML = `<h2>Explore Local Discovery</h2><p>Discover cocktails by category and characteristics.</p>`;
+            panel.innerHTML = `
+                <div class="explore-container">
+                    <h2>Cocktail Explorer</h2>
+                    <p class="section-desc">Discover new drinks grouped by base spirits, flavor profiles, and historic categories.</p>
+                    <div id="explore-content-area"></div>
+                </div>
+            `;
             if (typeof window.loadExploreView === 'function') {
-                window.loadExploreView(panel);
+                window.loadExploreView(panel.querySelector('#explore-content-area') || panel);
             }
             break;
+
         case 'play':
-            panel.innerHTML = `<h2>Mixology Round</h2><p>Select your glass and prep to start pouring.</p>`;
+            panel.innerHTML = `
+                <div class="play-container">
+                    <h2>Mixology Round</h2>
+                    <p class="section-desc">Select your glass, pour ingredients, and build drinks to order.</p>
+                    <div id="play-content-area"></div>
+                </div>
+            `;
             if (typeof window.loadPlayView === 'function') {
-                window.loadPlayView(panel);
+                window.loadPlayView(panel.querySelector('#play-content-area') || panel);
             }
             break;
+
         case 'boss':
-            panel.innerHTML = `<h2>The Martini Gauntlet (Boss Fight)</h2><p>Defeat the boss by answering correctly.</p>`;
+            panel.innerHTML = `
+                <div class="boss-container">
+                    <h2>The Martini Gauntlet (Boss Fight)</h2>
+                    <p class="section-desc">Face off against high-pressure customer orders and tricky variations.</p>
+                    <div id="boss-content-area"></div>
+                </div>
+            `;
             if (typeof window.loadBossView === 'function') {
-                window.loadBossView(panel);
+                window.loadBossView(panel.querySelector('#boss-content-area') || panel);
             }
             break;
+
         case 'cellar':
-            panel.innerHTML = `<h2>Cellar Log</h2><p>Track your real-life creations and purchases.</p>`;
+            panel.innerHTML = `
+                <div class="cellar-container">
+                    <h2>Cellar Log</h2>
+                    <p class="section-desc">Track your real-life bottle inventory, ingredient stock, and unlockable rewards.</p>
+                    <div id="cellar-content-area"></div>
+                </div>
+            `;
             if (typeof window.loadCellarView === 'function') {
-                window.loadCellarView(panel);
+                window.loadCellarView(panel.querySelector('#cellar-content-area') || panel);
             }
             break;
+
         default:
             panel.innerHTML = `<p>View not found.</p>`;
     }
