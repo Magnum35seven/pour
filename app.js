@@ -1,5 +1,3 @@
-import { allRecipes } from './data.js';
-
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
 });
@@ -70,12 +68,10 @@ function renderActiveView(viewName) {
                 </div>
             `;
             
-            // Initial render of all recipes and setup search behavior
-            renderLibraryList(allRecipes);
+            // Hook up search listener and load library view safely
             setupLibrarySearch();
-
             if (typeof window.loadLibraryView === 'function') {
-                window.loadLibraryView(panel.querySelector('#library-list-area'), allRecipes);
+                window.loadLibraryView(panel.querySelector('#library-list-area'));
             }
             break;
 
@@ -141,6 +137,10 @@ function renderActiveView(viewName) {
     }
 }
 
+/**
+ * Attaches real-time search filtering to the library search input.
+ * Works seamlessly with existing global recipe sources (window.allRecipes, window.recipes, etc.)
+ */
 function setupLibrarySearch() {
     const searchInput = document.getElementById('recipe-search-input');
     if (!searchInput) return;
@@ -148,31 +148,19 @@ function setupLibrarySearch() {
     searchInput.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase().trim();
         
-        const filtered = allRecipes.filter(recipe => {
+        // Retrieve recipes from whichever global variable your app uses
+        const recipes = window.allRecipes || window.recipes || window. cocktailDatabase || [];
+        if (!recipes.length) return;
+
+        const filtered = recipes.filter(recipe => {
             if (!query) return true;
             const terms = recipe.searchTerms || `${recipe.name} ${recipe.cat} ${recipe.story || ''}`.toLowerCase();
             return terms.includes(query);
         });
 
-        renderLibraryList(filtered);
+        const listArea = document.getElementById('library-list-area');
+        if (listArea && typeof window.loadLibraryView === 'function') {
+            window.loadLibraryView(listArea, filtered);
+        }
     });
-}
-
-function renderLibraryList(recipesToRender) {
-    const listArea = document.getElementById('library-list-area');
-    if (!listArea) return;
-
-    if (recipesToRender.length === 0) {
-        listArea.innerHTML = `<p class="no-results" style="padding: 20px; color: #777;">No cocktails found matching your search.</p>`;
-        return;
-    }
-
-    listArea.innerHTML = recipesToRender.map(recipe => `
-        <div class="recipe-card" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; background: #fff;">
-            <h3 style="margin: 0 0 5px 0;">${recipe.name}</h3>
-            <span style="font-size: 0.8em; background: #eee; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">${recipe.cat}</span>
-            <p style="margin: 8px 0; font-size: 0.95em; color: #441;">${recipe.story}</p>
-            <p style="font-size: 0.9em; color: #666; margin: 0;"><strong>Ingredients:</strong> ${recipe.ings.map(i => `${i.v}${i.u}${i.n}`).join(', ')}</p>
-        </div>
-    `).join('');
 }
