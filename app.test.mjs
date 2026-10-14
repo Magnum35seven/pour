@@ -59,6 +59,7 @@ ok('absolute alcohol equals sum of parts (spot check)', (() => {
 })(), 'negroni');
 
 /* --------------------------------------------------------------- routing */
+ok('app opens on the library tab by default', $('#tabbar a.on')?.dataset.tab === 'library' && $$('#list .rc').length === RECIPES.length, location.hash);
 await nav('#/drill');
 ok('drill view renders', $('#app').innerHTML.includes('Rank'), '');
 ok('drill shows a practice queue', $$('#app .rc').length >= 5, `${$$('#app .rc').length} rows`);

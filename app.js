@@ -34,10 +34,10 @@ const routes = {};
 function route(path, fn) { routes[path] = fn; }
 
 function render() {
-  const h = location.hash.replace(/^#/, '') || '/drill';
+  const h = location.hash.replace(/^#/, '') || '/library';
   const [path, ...rest] = h.split('/').filter(Boolean);
-  const key = '/' + (path || 'drill');
-  const fn = routes[key] || routes['/drill'];
+  const key = '/' + (path || 'library');
+  const fn = routes[key] || routes['/library'];
   document.querySelectorAll('#tabbar a').forEach(a =>
     a.classList.toggle('on', a.getAttribute('href') === '#' + key ||
       (key === '/recipe' || key === '/play') && a.dataset.tab === 'library'));

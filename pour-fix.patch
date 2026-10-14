@@ -1,7 +1,21 @@
 diff --git a/app.js b/app.js
-index f15297e..6b84bdc 100644
+index f15297e..59bb2e1 100644
 --- a/app.js
 +++ b/app.js
+@@ -34,10 +34,10 @@ const routes = {};
+ function route(path, fn) { routes[path] = fn; }
+ 
+ function render() {
+-  const h = location.hash.replace(/^#/, '') || '/drill';
++  const h = location.hash.replace(/^#/, '') || '/library';
+   const [path, ...rest] = h.split('/').filter(Boolean);
+-  const key = '/' + (path || 'drill');
+-  const fn = routes[key] || routes['/drill'];
++  const key = '/' + (path || 'library');
++  const fn = routes[key] || routes['/library'];
+   document.querySelectorAll('#tabbar a').forEach(a =>
+     a.classList.toggle('on', a.getAttribute('href') === '#' + key ||
+       (key === '/recipe' || key === '/play') && a.dataset.tab === 'library'));
 @@ -55,7 +55,8 @@ route('/drill', () => {
    const st = DB.S();
    app.innerHTML = `
@@ -611,7 +625,7 @@ index f15297e..6b84bdc 100644
 +
 +render();
 diff --git a/app.test.mjs b/app.test.mjs
-index c9039dd..9e88a45 100644
+index c9039dd..2086ab6 100644
 --- a/app.test.mjs
 +++ b/app.test.mjs
 @@ -1,10 +1,10 @@
@@ -644,6 +658,14 @@ index c9039dd..9e88a45 100644
  
  const $ = (s) => document.querySelector(s);
  const $$ = (s) => [...document.querySelectorAll(s)];
+@@ -59,6 +59,7 @@ ok('absolute alcohol equals sum of parts (spot check)', (() => {
+ })(), 'negroni');
+ 
+ /* --------------------------------------------------------------- routing */
++ok('app opens on the library tab by default', $('#tabbar a.on')?.dataset.tab === 'library' && $$('#list .rc').length === RECIPES.length, location.hash);
+ await nav('#/drill');
+ ok('drill view renders', $('#app').innerHTML.includes('Rank'), '');
+ ok('drill shows a practice queue', $$('#app .rc').length >= 5, `${$$('#app .rc').length} rows`);
 diff --git a/manifest.webmanifest b/manifest.webmanifest
 index d71cad4..6f836f8 100644
 --- a/manifest.webmanifest
