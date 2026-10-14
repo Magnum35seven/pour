@@ -60,6 +60,13 @@ ok('absolute alcohol equals sum of parts (spot check)', (() => {
 
 /* --------------------------------------------------------------- routing */
 ok('app opens on the library tab by default', $('#tabbar a.on')?.dataset.tab === 'library' && $$('#list .rc').length === RECIPES.length, location.hash);
+/* service worker: every precached file must exist, or cache.addAll() fails and offline breaks */
+{
+  const sw = fs.readFileSync(root + '/sw.js', 'utf8');
+  const shell = [...sw.slice(sw.indexOf('SHELL = ['), sw.indexOf('];', sw.indexOf('SHELL = ['))).matchAll(/'\.\/([^']*)'/g)].map(m => m[1] || 'index.html');
+  const missing = shell.filter(f => !fs.existsSync(root + '/' + f));
+  ok('sw.js precache list points at files that exist', shell.length > 5 && missing.length === 0, missing.join(', '));
+}
 await nav('#/drill');
 ok('drill view renders', $('#app').innerHTML.includes('Rank'), '');
 ok('drill shows a practice queue', $$('#app .rc').length >= 5, `${$$('#app .rc').length} rows`);

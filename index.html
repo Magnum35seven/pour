@@ -26,9 +26,24 @@
 
 <script type="module" src="app.js"></script>
 <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
-  }
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const hadController = !!navigator.serviceWorker.controller;
+      const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+      // A new service worker took over: reload once so the page runs the new code.
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController || reloaded) return;
+        reloaded = true; location.reload();
+      });
+      // Look for a new sw.js whenever the app is brought back to the foreground.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update().catch(() => {});
+      });
+    } catch (_) { /* offline or unsupported: app still works */ }
+  });
+}
 </script>
 </body>
 </html>

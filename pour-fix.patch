@@ -625,7 +625,7 @@ index f15297e..59bb2e1 100644
 +
 +render();
 diff --git a/app.test.mjs b/app.test.mjs
-index c9039dd..2086ab6 100644
+index c9039dd..ac3ef8a 100644
 --- a/app.test.mjs
 +++ b/app.test.mjs
 @@ -1,10 +1,10 @@
@@ -658,14 +658,53 @@ index c9039dd..2086ab6 100644
  
  const $ = (s) => document.querySelector(s);
  const $$ = (s) => [...document.querySelectorAll(s)];
-@@ -59,6 +59,7 @@ ok('absolute alcohol equals sum of parts (spot check)', (() => {
+@@ -59,6 +59,14 @@ ok('absolute alcohol equals sum of parts (spot check)', (() => {
  })(), 'negroni');
  
  /* --------------------------------------------------------------- routing */
 +ok('app opens on the library tab by default', $('#tabbar a.on')?.dataset.tab === 'library' && $$('#list .rc').length === RECIPES.length, location.hash);
++/* service worker: every precached file must exist, or cache.addAll() fails and offline breaks */
++{
++  const sw = fs.readFileSync(root + '/sw.js', 'utf8');
++  const shell = [...sw.slice(sw.indexOf('SHELL = ['), sw.indexOf('];', sw.indexOf('SHELL = ['))).matchAll(/'\.\/([^']*)'/g)].map(m => m[1] || 'index.html');
++  const missing = shell.filter(f => !fs.existsSync(root + '/' + f));
++  ok('sw.js precache list points at files that exist', shell.length > 5 && missing.length === 0, missing.join(', '));
++}
  await nav('#/drill');
  ok('drill view renders', $('#app').innerHTML.includes('Rank'), '');
  ok('drill shows a practice queue', $$('#app .rc').length >= 5, `${$$('#app .rc').length} rows`);
+diff --git a/index.html b/index.html
+index 616c929..121ba54 100644
+--- a/index.html
++++ b/index.html
+@@ -26,9 +26,24 @@
+ 
+ <script type="module" src="app.js"></script>
+ <script>
+-  if ('serviceWorker' in navigator) {
+-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+-  }
++if ('serviceWorker' in navigator) {
++  window.addEventListener('load', async () => {
++    try {
++      const hadController = !!navigator.serviceWorker.controller;
++      const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
++      // A new service worker took over: reload once so the page runs the new code.
++      let reloaded = false;
++      navigator.serviceWorker.addEventListener('controllerchange', () => {
++        if (!hadController || reloaded) return;
++        reloaded = true; location.reload();
++      });
++      // Look for a new sw.js whenever the app is brought back to the foreground.
++      document.addEventListener('visibilitychange', () => {
++        if (document.visibilityState === 'visible') reg.update().catch(() => {});
++      });
++    } catch (_) { /* offline or unsupported: app still works */ }
++  });
++}
+ </script>
+ </body>
+ </html>
 diff --git a/manifest.webmanifest b/manifest.webmanifest
 index d71cad4..6f836f8 100644
 --- a/manifest.webmanifest
@@ -683,14 +722,22 @@ index d71cad4..6f836f8 100644
    ]
  }
 diff --git a/sw.js b/sw.js
-index 2b85803..ba5559d 100644
+index 2b85803..b27df54 100644
 --- a/sw.js
 +++ b/sw.js
-@@ -1,19 +1,19 @@
- /* Offline-first service worker. App shell + data are precached; everything else
-    falls back to cache-first then network. */
+@@ -1,23 +1,34 @@
+-/* Offline-first service worker. App shell + data are precached; everything else
+-   falls back to cache-first then network. */
 -const VERSION = 'pour-v1';
-+const VERSION = 'pour-v2';
++/* Offline-first service worker with automatic updates.
++
++   Strategy: NETWORK-FIRST for the app itself. Every load asks the server for a
++   fresh copy (bypassing the browser's HTTP cache), stores it, and uses it. So any
++   commit you push shows up on the next open - no version number to bump.
++   If the network is offline, fails, or takes longer than 4 s, the cached copy
++   is used instead, so the app still works fully offline. */
++
++const VERSION = 'pour-v3';   // only bump to force-purge old caches
  const SHELL = [
    './',
    './index.html',
@@ -714,5 +761,55 @@ index 2b85803..ba5559d 100644
 +  './icon-512.png',
 +  './maskable-512.png',
  ];
++const NETWORK_TIMEOUT_MS = 4000;
  
  self.addEventListener('install', (e) => {
+-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
++  e.waitUntil(
++    caches.open(VERSION)
++      .then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' }))))
++      .then(() => self.skipWaiting())
++  );
+ });
+ 
+ self.addEventListener('activate', (e) => {
+@@ -28,20 +39,28 @@ self.addEventListener('activate', (e) => {
+   );
+ });
+ 
++function networkFirst(req) {
++  const net = fetch(req, { cache: 'no-cache' }).then(res => {
++    if (res.ok) {                       // never cache error responses
++      const copy = res.clone();
++      caches.open(VERSION).then(c => c.put(req, copy));
++    }
++    return res;
++  });
++  const timeout = new Promise((_, reject) => setTimeout(reject, NETWORK_TIMEOUT_MS));
++  return Promise.race([net, timeout]).catch(() =>
++    caches.match(req, { ignoreSearch: true }).then(hit =>
++      hit ||
++      (req.mode === 'navigate' ? caches.match('./index.html') : null) ||
++      net.catch(() => Response.error())
++    )
++  );
++}
++
+ self.addEventListener('fetch', (e) => {
+   const req = e.request;
+   if (req.method !== 'GET') return;
+   const url = new URL(req.url);
+   if (url.origin !== self.location.origin) return;
+-
+-  e.respondWith(
+-    caches.match(req).then(hit => hit || fetch(req).then(res => {
+-      // Never cache error responses.
+-      if (res.ok) {
+-        const copy = res.clone();
+-        caches.open(VERSION).then(c => c.put(req, copy));
+-      }
+-      return res;
+-    }).catch(() => caches.match('./index.html')))
+-  );
++  e.respondWith(networkFirst(req));
+ });
