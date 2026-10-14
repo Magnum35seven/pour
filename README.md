@@ -1,4 +1,4 @@
-# Pour — Learn 121 Cocktails
+# Pour — Learn 143 Cocktails
 
 A fully offline, installable PWA for learning the cocktail canon by *doing*: pick the glass, the ice,
 the vessel, pour every ingredient to the exact line, choose the technique, the strain and the garnish —
@@ -28,8 +28,8 @@ python3 test_fetch_photos.py     # the photo collector, offline
 
 ## What's in the data
 
-- **121 recipes** = 93 from your uploaded guide **+ 26 IBA-official cocktails the guide was missing +
-  2 popular extras** (Amaretto Sour, Picante de la Casa),
+- **143 recipes** = 93 from your uploaded guide **+ 26 IBA-official cocktails the guide was missing +
+  24 popular extras** (White Russian, Dirty Martini, Gimlet, Painkiller, Division Bell, Shirley Temple…),
   so the current 102-drink IBA list is fully covered (the guide only contained ~75 of them; see below).
 - Every recipe carries: ingredients (mL/dashes with labelled ABV per ingredient), glass, prep ice,
   serve ice, vessel, technique(s) with timings, strain, garnish, family.
@@ -63,7 +63,8 @@ Ve.n.to.
 
 1. **Drill** – a daily queue weighted by what you've never tried and where you keep erring; XP, ranks,
    badges, decision- and pour-accuracy.
-2. **Library** – search + filter all 121 (by category, by source, by strength). Each recipe page shows
+2. **Library** – (also holds the **Glass guide**: every glass drawn, with its drinks, and a printable **Cheat sheet** of all recipes in mL or oz)
+    search + filter all 143 (by category, by source, by strength). Each recipe page shows
    the build, the alcohol panel, tasting notes, backstory and myth check.
 3. **My bar** – tap the ingredients you own to see what you can make now, what is one ingredient away,
    and what to buy next (it names the single bottle that unlocks the most drinks). Switch to *Contains*

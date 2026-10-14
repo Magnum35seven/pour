@@ -42,7 +42,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 console.log(`data: ${RECIPES.length} recipes (guide ${BUILD.guideRecipes} + IBA ${BUILD.ibaAdded} + extras ${BUILD.extraAdded})`);
 
 /* ------------------------------------------------------------------ data */
-ok('recipe count is 121 and matches BUILD', RECIPES.length === 121 && BUILD.total === 121, `got ${RECIPES.length}`);
+ok('recipe count is 143 and matches BUILD', RECIPES.length === 143 && BUILD.total === 143, `got ${RECIPES.length}`);
 ok('every recipe has editorial content',
   RECIPES.every(r => r.story && r.taste && r.conf));
 ok('every recipe has a resolvable ingredient set',
@@ -177,6 +177,81 @@ ok('app opens on the library tab by default', $('#tabbar a.on')?.dataset.tab ===
   ok('photos.json only names real recipes', Object.keys(photos).every(k => ids.has(k)));
   ok('every photo file exists and carries a licence and credit', Object.values(photos).every(p =>
     fs.existsSync(root + '/' + p.file) && p.license && p.credit && p.source));
+}
+
+
+/* ---------- second batch of recipes ---------- */
+{
+  const want = ['white-russian','dirty-martini','gimlet','brandy-alexander','godfather','greyhound','salty-dog','cape-cod',
+    'painkiller','hurricane','blue-lagoon','midori-sour','lynchburg-lemonade','black-velvet','kir-royale',
+    'death-in-the-afternoon','black-manhattan','division-bell','milano-torino','breakfast-martini','batanga','shirley-temple'];
+  const have = new Map(RECIPES.map(r => [r.id, r]));
+  ok('all 22 new recipes exist', want.every(id => have.has(id)));
+  ok('recipe ids are unique', have.size === RECIPES.length);
+  const ex = RECIPES.filter(r => r.src === 'extra');
+  ok('24 popular extras, all in the Popular extras category', ex.length === 24 && ex.every(r => r.cat === 'extra') && BUILD.extraAdded === 24);
+  ok('every ingredient of every recipe is a known ingredient', RECIPES.every(r => r.ings.every(i => INGREDIENTS[i.k])));
+  const maths = (r) => { const ab = r.ings.reduce((a, i) => a + i.ml * i.abv / 100, 0); return Math.abs(ab - r.abv.absolute_ml) < 0.02; };
+  ok('alcohol maths is consistent for all the extras', ex.every(maths));
+  const st = have.get('shirley-temple');
+  ok('Shirley Temple is alcohol-free', st.abv.absolute_ml === 0 && st.abv.std_au === 0 && st.abv.abv_served === 0);
+  ok('every extra has a story, taste note, method and confidence', ex.every(r => r.story.length > 60 && r.taste.length > 20 && r.method.length > 30 && ['high', 'med', 'low'].includes(r.conf)));
+  ok('trademarked names are flagged', !!have.get('painkiller').flag);
+  const G = await import('./game.js');
+  ok('every recipe builds playable stages', RECIPES.every(r => { try { return G.buildStages(r).length > 1; } catch (e) { return false; } }));
+  const F2 = await import('./finder.js');
+  const cat2 = F2.catalogue(RECIPES, INGREDIENTS);
+  ok('new ingredients appear in the My bar list, stout under Beer', cat2.find(c => c.k === 'stout')?.cat === 'beer' && !!cat2.find(c => c.k === 'olive brine'));
+  const wr = F2.canMake(RECIPES, ['vodka', 'kahlúa', 'cream']);
+  ok('can make: White Russian from vodka + coffee liqueur + cream', wr.find(x => x.r.id === 'white-russian')?.missing.length === 0);
+  DB.S().bar = []; DB.S().barMode = 'make';
+  await nav('#/library');
+  ok('Popular extras filter lists all 24', (() => { const b = [...$$('#filters button, .filters button')].find(x => /Popular extras/.test(x.textContent)); if (!b) return false; b.click(); const n = $$('#list .rc').length; [...$$('.filters button')].find(x => x.textContent.trim() === 'All').click(); return n === 24; })());
+}
+
+/* ---------- glass guide ---------- */
+{
+  await nav('#/library');
+  ok('library links to the glass guide and the cheat sheet', !!$('#app [data-go="#/glasses"]') && !!$('#app [data-go="#/sheet"]'));
+  await nav('#/glasses');
+  const glasses = [...new Set(RECIPES.map(r => r.glass))];
+  ok('glass guide has a card for every glass in use', $$('#app .glasscard').length === glasses.length, `${$$('#app .glasscard').length} vs ${glasses.length}`);
+  ok('every glass has a drawing and a description', $$('#app .glasscard').every(c => c.querySelector('svg') && c.querySelector('p').textContent.length > 40));
+  const coupeN = RECIPES.filter(r => r.glass === 'coupe').length;
+  ok('the coupe card lists every coupe drink', $$('#g-coupe a.chip').length === coupeN && coupeN > 10);
+  ok('every drink is listed under exactly one glass', $$('#app .glasscard a.chip').length === RECIPES.length);
+  ok('glass guide links go to recipes', $('#g-coupe a.chip').getAttribute('href').startsWith('#/recipe/'));
+  await nav('#/glasses/tiki');
+  ok('deep link highlights that glass', $('#g-tiki')?.classList.contains('hl') && $$('#app .glasscard.hl').length === 1);
+  ok('Library tab stays highlighted on the guide', $('#tabbar a.on')?.dataset.tab === 'library');
+  await nav('#/recipe/negroni');
+  ok('recipe page links its glass to the guide', $('#app a.pill[href^="#/glasses/"]')?.getAttribute('href') === '#/glasses/rocks');
+}
+
+/* ---------- cheat sheet ---------- */
+{
+  const P = await import('./app.js');
+  ok('ozText rounds to quarter ounces', P.ozText(45) === '1½' && P.ozText(60) === '2' && P.ozText(22.5) === '¾' && P.ozText(15) === '½' && P.ozText(7.5) === '¼');
+  ok('ozText marks approximations', P.ozText(20).startsWith('~'));
+  const neg = RECIPES.find(r => r.id === 'negroni');
+  ok('sheet line in mL is right', P.sheetLine(neg, 'ml') === '30 mL gin, 30 mL campari, 30 mL sweet vermouth' ||
+    /30 mL/.test(P.sheetLine(neg, 'ml')) && P.sheetLine(neg, 'ml').split(',').length === 3, P.sheetLine(neg, 'ml'));
+  ok('sheet line in oz is right', /^1 oz /.test(P.sheetLine(neg, 'oz')), P.sheetLine(neg, 'oz'));
+  ok('sheet how-line names the technique', /Stir/.test(P.sheetHow(RECIPES.find(r => r.id === 'dirty-martini'))));
+  DB.S().settings.units = 'ml';
+  await nav('#/sheet');
+  ok('cheat sheet lists every recipe', $$('#app .sheet-r').length === RECIPES.length);
+  ok('cheat sheet has no undefined or NaN text', !/undefined|NaN|null/.test($('#app .sheet').textContent));
+  ok('cheat sheet has a print button', !!$('#sheetprint'));
+  $('#sheetcats [data-c="extra"]').click();
+  ok('cheat sheet filter narrows to the extras', $$('#app .sheet-r').length === 24);
+  $('#sheetunits [data-u="oz"]').click();
+  ok('unit switch to oz works and is remembered', /oz /.test($('#app .sheet').textContent) && DB.S().settings.units === 'oz');
+  DB.S().settings.units = 'ml'; DB.save();
+  $('#sheetcats [data-c="all"]').click();
+  ok('Shirley Temple is marked alcohol-free on the sheet', /Shirley Temple[^\n]*alcohol-free/.test($('#app .sheet').textContent.replace(/\s+/g, ' ')) || $('#app .sheet').textContent.includes('alcohol-free'));
+  const css = fs.readFileSync(root + '/app.css', 'utf8');
+  ok('print stylesheet hides the tab bar and uses columns', /@media print/.test(css) && /#tabbar[^}]*display:none/.test(css.slice(css.indexOf('@media print'))) );
 }
 
 await nav('#/drill');

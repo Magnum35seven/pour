@@ -5,7 +5,7 @@ import { buildStages, gradePour, pourScale, GLASS_LABEL, ICE_LABEL, VESSEL_LABEL
 import { buildBoss, BOSS_HP, ROSTER } from './boss.js';
 import * as DB from './store.js';
 import { catalogue, containing, canMake, buyNext, canonKey, CAT_NAME } from './finder.js';
-import { thumbHTML, glassSVG } from './art.js';
+import { thumbHTML, glassSVG, glassSample } from './art.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app');
@@ -40,7 +40,7 @@ function flash() {
 }
 
 const CAT_LABEL = { unforgettables: 'The Unforgettables', contemporary: 'Contemporary Classics',
-                    newera: 'New Era Drinks', noniba: 'Non-IBA classics' };
+                    newera: 'New Era Drinks', noniba: 'Non-IBA classics', extra: 'Popular extras' };
 
 /* ------------------------------------------------------------------ router */
 
@@ -54,7 +54,7 @@ function render() {
   const fn = routes[key] || routes['/library'];
   document.querySelectorAll('#tabbar a').forEach(a =>
     a.classList.toggle('on', a.getAttribute('href') === '#' + key ||
-      (key === '/recipe' || key === '/play') && a.dataset.tab === 'library'));
+      ['/recipe', '/play', '/glasses', '/sheet'].includes(key) && a.dataset.tab === 'library'));
   window.scrollTo(0, 0);
   fn(...rest);
 }
@@ -135,6 +135,10 @@ let libFilter = 'all';
 route('/library', () => {
   app.innerHTML = `
     <h1>Library</h1>
+    <div class="row" style="gap:8px;margin-bottom:4px">
+      <button class="btn ghost small" data-go="#/glasses">Glass guide</button>
+      <button class="btn ghost small" data-go="#/sheet">Cheat sheet</button>
+    </div>
     <div class="search">
       <input id="q" placeholder="Search ${BUILD.total} cocktails, spirits, garnishes…" autocomplete="off">
       <div class="filters" id="fl">
@@ -182,6 +186,142 @@ function heroHTML(r) {
   }
   return `<div class="hero art">${glassSVG(r, INGREDIENTS, { size: 150 })}</div>`;
 }
+
+/* ------------------------------------------------------------- glass guide */
+
+const GLASS_NOTE = {
+  'coupe': 'A shallow, wide bowl on a stem, for drinks served up with no ice. Holding the stem keeps your hand off the bowl so the drink stays cold. It looks good but spills easily, so do not fill it to the brim.',
+  'cocktail glass': 'The small V-shaped stemmed glass most people picture for "a cocktail". Good for short, strong drinks served up and finished quickly, before they warm.',
+  'martini glass': 'A wide V-shaped bowl on a long stem for martinis and other stirred or shaken drinks served up. It shows off aroma but spills easily and the drink warms fast, so chill the glass first.',
+  'champagne flute': 'A tall, narrow bowl that keeps bubbles lively for longer and carries the aroma up the glass. Use it when the fizz is the point.',
+  'wine glass': 'A large bowl on a stem. Used here for spritzes and other wine-based long drinks over plenty of ice, where the wide mouth lets the aroma out.',
+  'rocks': 'A short, heavy tumbler, also called an old-fashioned glass. Made for spirit-forward drinks over ice and for builds that need muddling in the glass.',
+  'highball': 'A tall, straight glass for a measure of spirit lengthened with plenty of mixer over ice, so the drink stays cold and fizzy as you drink it.',
+  'collins': 'Like a highball but taller and narrower, so carbonation lasts. The usual home of long, fizzy, citrus-led drinks.',
+  'zombie': 'A tall, slightly tapered glass for big rum-based tiki drinks, usually over crushed ice. Its size matches how much goes into them.',
+  'tiki': 'A ceramic or glass mug, often shaped like a face, for tropical drinks over crushed ice. Showmanship is part of the point.',
+  'hurricane': 'A curvy, footed glass shaped like a hurricane lamp, for tropical, blended and fruit-heavy drinks.',
+  'julep cup': 'A small metal cup that frosts on the outside when packed with crushed ice. The frost is how you know the drink is cold enough.',
+  'irish coffee': 'A heat-proof stemmed glass for hot drinks, so you can see the layer of cream floating on the coffee.',
+  'shot': 'A small glass, roughly 30 to 60 mL, for shooters and layered shots that are drunk in one go.',
+};
+const GLASS_ORDER = ['coupe', 'cocktail glass', 'martini glass', 'champagne flute', 'wine glass', 'rocks', 'highball',
+  'collins', 'zombie', 'tiki', 'hurricane', 'julep cup', 'irish coffee', 'shot'];
+const SERVE_TEXT = { none: 'Served up, no ice in the glass', cubes: 'Over ice cubes', crushed: 'Over crushed ice',
+  block: 'Over one large block', cracked: 'Over cracked ice' };
+const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const mostCommon = (arr) => {
+  const n = {}; arr.forEach(x => n[x] = (n[x] || 0) + 1);
+  return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0];
+};
+const median = (nums) => {
+  const s = [...nums].sort((a, b) => a - b);
+  return s.length ? s[Math.floor(s.length / 2)] : 0;
+};
+
+export function glassFacts(recipes) {
+  const by = {};
+  for (const r of recipes) (by[r.glass] = by[r.glass] || []).push(r);
+  const keys = [...GLASS_ORDER.filter(g => by[g]), ...Object.keys(by).filter(g => !GLASS_ORDER.includes(g))];
+  return keys.map(g => {
+    const list = by[g].slice().sort((a, b) => a.name.localeCompare(b.name));
+    return { glass: g, list, serve: mostCommon(list.map(r => r.iceServe)),
+      ml: Math.round(median(list.map(r => r.abv.volume_served_ml))) };
+  });
+}
+
+route('/glasses', (which) => {
+  const target = which ? decodeURIComponent(which) : '';
+  const facts = glassFacts(RECIPES);
+  app.innerHTML = `
+    <button class="btn ghost small" data-go="#/library">← Library</button>
+    <h1 style="margin-top:12px">Glass guide</h1>
+    <p class="muted">Which glass, and why. Every drink in the app is listed under the glass it is served in.</p>
+    ${facts.map(f => `
+      <div class="card glasscard ${f.glass === target ? 'hl' : ''}" id="g-${slug(f.glass)}">
+        <div class="glassrow">
+          <div class="glasspic">${glassSample(f.glass, INGREDIENTS, { size: 92, ice: f.serve === 'none' ? 'none' : f.serve })}</div>
+          <div>
+            <h3 style="margin:0 0 3px">${esc(GLASS_LABEL[f.glass] || f.glass)}</h3>
+            <div class="dim" style="font-size:.76rem">${f.list.length} drink${f.list.length === 1 ? '' : 's'} ·
+              ${SERVE_TEXT[f.serve] || ''} · typically ${f.ml} mL as served</div>
+          </div>
+        </div>
+        <p style="font-size:.88rem;margin:10px 0">${esc(GLASS_NOTE[f.glass] || '')}</p>
+        <div class="chips">${f.list.map(r => `<a class="chip" href="#/recipe/${r.id}">${esc(r.name)}</a>`).join('')}</div>
+      </div>`).join('')}`;
+  const el = target && document.getElementById('g-' + slug(target));
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
+});
+
+/* ------------------------------------------------------------- cheat sheet */
+
+/* Millilitres as bar ounces to the nearest quarter, e.g. 45 -> 1½. */
+export function ozText(ml) {
+  const oz = ml / 30, q = Math.round(oz * 4) / 4, whole = Math.floor(q), frac = q - whole;
+  const f = { 0: '', 0.25: '¼', 0.5: '½', 0.75: '¾' }[frac];
+  const s = (whole ? String(whole) : '') + f || '0';
+  return (Math.abs(oz - q) > 0.04 ? '~' : '') + s;
+}
+export function amountText(i, units) {
+  if (i.u === 'count') return '';
+  if (i.q == null || i.u === 'top') return 'Top with';
+  if (i.u === 'ml') return units === 'oz' ? `${ozText(i.q)} oz` : `${+i.q} mL`;
+  return `${+i.q} ${unitLabel(i)}`;
+}
+export function sheetLine(r, units) {
+  const parts = r.ings.map(i => {
+    const a = amountText(i, units);
+    const nm = i.u === 'count' ? i.l : ingName(i.k);
+    return a ? `${a} ${nm.toLowerCase()}` : nm.toLowerCase();
+  });
+  return parts.join(', ');
+}
+export function sheetHow(r) {
+  const tech = r.tech.map(t => t.s ? `${TECH_LABEL[t.t]} ${t.s}s` : TECH_LABEL[t.t]).join(' · ');
+  const strain = r.strain && r.strain !== 'none' ? ` · ${STRAIN_LABEL[r.strain]}` : '';
+  return tech + strain;
+}
+
+let sheetCat = 'all';
+route('/sheet', () => {
+  const st = DB.S();
+  const units = st.settings.units === 'oz' ? 'oz' : 'ml';
+  const cats = [['all', 'All'], ['unforgettables', 'Unforgettables'], ['contemporary', 'Contemporary'],
+    ['newera', 'New Era'], ['noniba', 'Non-IBA'], ['extra', 'Popular extras']];
+  const list = RECIPES.filter(r => sheetCat === 'all' || r.cat === sheetCat)
+    .slice().sort((a, b) => a.name.localeCompare(b.name));
+  app.innerHTML = `
+    <div class="noprint">
+      <button class="btn ghost small" data-go="#/library">← Library</button>
+      <h1 style="margin-top:12px">Cheat sheet</h1>
+      <p class="muted">Every recipe on one page, in plain words. Print it or save it as a PDF.</p>
+      <div class="filters" id="sheetcats">${cats.map(([v, l]) =>
+        `<button data-c="${v}" class="${sheetCat === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+      <div class="spread" style="margin:10px 0">
+        <div class="seg small" id="sheetunits"><button data-u="ml" class="${units === 'ml' ? 'on' : ''}">mL</button>
+          <button data-u="oz" class="${units === 'oz' ? 'on' : ''}">oz</button></div>
+        <button class="btn small" id="sheetprint">Print / save as PDF</button>
+      </div>
+    </div>
+    <p class="sheetnote">Pour — ${list.length} cocktails · ${units === 'oz' ? 'bar ounces (1 oz = 30 mL, rounded to a quarter)' : 'millilitres'}</p>
+    <div class="sheet">${list.map(r => `
+      <article class="sheet-r">
+        <h4>${esc(r.name)} <small>${esc(GLASS_LABEL[r.glass] || r.glass)}${r.abv.std_au ? '' : ' · alcohol-free'}</small></h4>
+        <p class="ing">${esc(sheetLine(r, units))}</p>
+        <p class="how">${esc(sheetHow(r))} · ${esc(SERVE_TEXT[r.iceServe] || '')}${r.garnish && !/^none/i.test(r.garnish) ? ' · ' + esc(r.garnish) : ''}</p>
+      </article>`).join('')}</div>`;
+  $('#sheetcats').onclick = (e) => {
+    const b = e.target.closest('[data-c]'); if (!b) return;
+    sheetCat = b.dataset.c; route_sheet();
+  };
+  $('#sheetunits').onclick = (e) => {
+    const b = e.target.closest('[data-u]'); if (!b) return;
+    st.settings.units = b.dataset.u; DB.save(); route_sheet();
+  };
+  $('#sheetprint').onclick = () => { if (typeof window.print === 'function') window.print(); };
+});
+function route_sheet() { routes['/sheet'](); }
 
 /* --------------------------------------------------------------------- my bar */
 
@@ -321,7 +461,7 @@ route('/recipe', (id) => {
     <div class="card">
       <h3>Build</h3>
       <div class="row wrap" style="gap:6px;margin-bottom:9px">
-        <span class="pill">${GLASS_LABEL[r.glass] || r.glass}</span>
+        <a class="pill" href="#/glasses/${encodeURIComponent(r.glass)}">${GLASS_LABEL[r.glass] || r.glass}</a>
         <span class="pill">Ice: ${ICE_LABEL[r.icePrep]}</span>
         ${r.iceServe !== r.icePrep ? `<span class="pill">Served: ${ICE_LABEL[r.iceServe]}</span>` : ''}
         <span class="pill">${VESSEL_LABEL[r.vessel]}</span>

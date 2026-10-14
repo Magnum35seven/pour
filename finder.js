@@ -17,11 +17,11 @@ for (const g of EQUIV) for (const k of g) CANON[k] = g[0];
 export const canonKey = (k) => CANON[k] || k;
 
 /* Display order for ingredient groups. */
-export const CAT_ORDER = ['spirit', 'liqueur', 'fortified', 'wine', 'sparkling', 'bitters',
+export const CAT_ORDER = ['spirit', 'liqueur', 'fortified', 'wine', 'sparkling', 'beer', 'bitters',
   'mixer', 'sweetener', 'dairy', 'hot', 'herb', 'spice', 'fruit', 'veg', 'garnish', 'other'];
 export const CAT_NAME = {
   spirit: 'Spirits', liqueur: 'Liqueurs', fortified: 'Fortified wines & vermouth', wine: 'Wine',
-  sparkling: 'Sparkling wine', bitters: 'Bitters', mixer: 'Juices & mixers', sweetener: 'Syrups & sweeteners',
+  sparkling: 'Sparkling wine', beer: 'Beer', bitters: 'Bitters', mixer: 'Juices & mixers', sweetener: 'Syrups & sweeteners',
   dairy: 'Dairy, egg & cream', hot: 'Coffee', herb: 'Herbs', spice: 'Spices & chilli', fruit: 'Fruit',
   veg: 'Vegetables', garnish: 'Garnishes', other: 'Pantry & other',
 };

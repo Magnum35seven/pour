@@ -177,3 +177,28 @@ label.f{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.
 .chip.on{background:var(--amber);color:#231a08;border-color:#b8913a;font-weight:650}
 .chip.on small{color:#5a4514}
 .chk{font-size:.8rem;color:var(--ink2);display:flex;align-items:center;gap:7px}
+
+/* ---------- glass guide and cheat sheet ---------- */
+.glasscard.hl{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)}
+.glassrow{display:flex;gap:14px;align-items:center}
+.glasspic{width:92px;height:92px;flex:0 0 auto;background:radial-gradient(ellipse at 50% 90%,#2a231c,#171310);
+  border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
+a.chip{text-decoration:none}
+.sheetnote{font-size:.72rem;color:var(--ink3);margin:6px 0}
+.sheet{columns:1}
+.sheet-r{break-inside:avoid;padding:9px 0;border-bottom:1px solid var(--line)}
+.sheet-r h4{margin:0 0 3px;font-size:1rem}
+.sheet-r h4 small{font-weight:400;font-size:.72rem;color:var(--ink3);margin-left:6px}
+.sheet-r p{margin:2px 0;font-size:.83rem}
+.sheet-r .how{color:var(--ink3);font-size:.76rem}
+@media (min-width:760px){.sheet{columns:2;column-gap:22px}}
+@media print{
+  @page{margin:10mm}
+  html,body{background:#fff!important;color:#000!important}
+  #tabbar,.noprint,.toast{display:none!important}
+  #app{padding:0!important;max-width:none!important}
+  .sheet{columns:3;column-gap:12px}
+  .sheet-r{border-bottom:.5pt solid #bbb;padding:4px 0}
+  .sheet-r h4{font-size:9.5pt;color:#000}.sheet-r p{font-size:7.6pt;color:#000}
+  .sheet-r h4 small,.sheet-r .how,.sheetnote{color:#444}
+}

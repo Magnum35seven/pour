@@ -69,7 +69,7 @@ export function drinkColour(recipe, INGREDIENTS) {
        ones (gin, vodka), so weight them up. */
     const mx = Math.max(...c), mn = Math.min(...c);
     const sat = mx ? (mx - mn) / mx : 0, val = mx / 255;
-    const ww = w * (1 + 3 * sat + 2 * (1 - val));
+    const ww = w * (0.5 + 12 * sat * sat + 2 * (1 - val));   // strong colour counts for far more than pale mixer
     for (let n = 0; n < 3; n++) acc[n] += c[n] * ww;
     tot += ww;
   }
@@ -92,12 +92,12 @@ export function glassShapeFor(recipe) {
 }
 
 /* Returns an <svg> string. */
-export function glassSVG(recipe, INGREDIENTS, { size = 44 } = {}) {
+export function glassSVG(recipe, INGREDIENTS, { size = 44, colour } = {}) {
   const shape = SHAPES[glassShapeFor(recipe)];
   const id = `cp-${recipe.id.replace(/[^a-z0-9-]/gi, '')}`;
   const liquidTop = shape.bottom - (shape.bottom - shape.top) * shape.level;
   const body = shape.bottom - liquidTop;
-  const base = drinkColour(recipe, INGREDIENTS);
+  const base = colour || drinkColour(recipe, INGREDIENTS);
   const foamy = recipe.family === 'egg-white' || recipe.ings.some(i => i.k === 'egg white' || i.k === 'cream' || i.k === 'whipped cream');
   const stroke = shape.metal ? 'rgba(210,214,220,.9)' : 'rgba(255,255,255,.55)';
   let liquid;
@@ -149,4 +149,12 @@ export function thumbHTML(recipe, INGREDIENTS, photos = {}, { size = 44 } = {}) 
     return `<img class="thumb" src="${escAttr(p.file)}" alt="" loading="lazy" width="${size}" height="${size}">`;
   }
   return glassSVG(recipe, INGREDIENTS, { size });
+}
+
+/* A glass drawn on its own (for the glass guide): a typical amber drink, with the ice
+   such glasses usually get. */
+export function glassSample(glass, INGREDIENTS, { size = 96, ice = 'none', colour = [214, 160, 74] } = {}) {
+  const fake = { id: 'sample-' + String(glass).replace(/[^a-z0-9]/gi, ''), glass, ings: [], family: 'shaken',
+    iceServe: ice, garnish: 'None' };
+  return glassSVG(fake, INGREDIENTS, { size, colour });
 }
