@@ -1,7 +1,7 @@
 {
-  "name": "Pour — Learn 119 Cocktails",
+  "name": "Pour — Learn 121 Cocktails",
   "short_name": "Pour",
-  "description": "A gamified trainer for the cocktail canon: pour, shake and garnish 119 recipes, track your mistakes, beat the Martini boss.",
+  "description": "A gamified trainer for the cocktail canon: pour, shake and garnish 121 recipes, track your mistakes, beat the Martini boss.",
   "id": "/",
   "start_url": "./",
   "scope": "./",

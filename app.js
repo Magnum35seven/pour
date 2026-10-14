@@ -4,11 +4,25 @@ import { buildStages, gradePour, pourScale, GLASS_LABEL, ICE_LABEL, VESSEL_LABEL
          STRAIN_LABEL, TECH_LABEL, ingName, unitLabel } from './game.js';
 import { buildBoss, BOSS_HP, ROSTER } from './boss.js';
 import * as DB from './store.js';
+import { catalogue, containing, canMake, buyNext, canonKey, CAT_NAME } from './finder.js';
+import { thumbHTML, glassSVG } from './art.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app');
 const byId = Object.fromEntries(RECIPES.map(r => [r.id, r]));
 DB.load();
+
+/* Licensed photos (see photos.json / fetch_photos.py). Optional: with none, every recipe
+   falls back to its drawn glass. Never blocks start-up for more than a moment. */
+const PHOTOS = {};
+async function loadPhotos() {
+  try {
+    if (typeof fetch !== 'function') return;
+    const res = await fetch('photos.json');
+    if (res.ok) Object.assign(PHOTOS, await res.json());
+  } catch (e) { /* offline or no photos yet */ }
+}
+await Promise.race([loadPhotos(), new Promise(r => setTimeout(r, 400))]);
 
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -56,7 +70,7 @@ route('/drill', () => {
   app.innerHTML = `
     <h1>Pour</h1>
     <p class="muted">${BUILD.total} recipes — ${BUILD.guideRecipes} from your guide, plus
-      ${BUILD.ibaAdded} IBA-official drinks the guide was missing.</p>
+      ${BUILD.ibaAdded} IBA-official drinks the guide was missing, plus ${BUILD.extraAdded || 0} popular extras.</p>
 
     <div class="card">
       <div class="spread">
@@ -94,15 +108,15 @@ function rankName(l) {
           'Bar Manager', 'Brand Ambassador', 'Legend'][Math.min(7, Math.floor((l - 1) / 2))];
 }
 
-function recipeRow(r) {
+function recipeRow(r, note) {
   const m = DB.mastery(r.id);
-  const c = colourFor(r);
   return `<button class="rc" data-go="#/recipe/${r.id}">
-    <span class="swatch" style="background:${c}"></span>
+    <span class="tw">${thumbHTML(r, INGREDIENTS, PHOTOS)}</span>
     <span style="flex:1">
       <span class="nm">${esc(r.name)}</span>
       <span class="meta"><span>${CAT_LABEL[r.cat]}</span><span>·</span>
         <span>${r.abv.abv_served}% ABV</span><span>·</span><span>${r.abv.std_au} std</span></span>
+      ${note ? `<span class="note">${note}</span>` : ''}
     </span>
     <span class="right">${m.level ? `<span class="pill ${m.level === 3 ? 'green' : m.level === 2 ? 'gold' : ''}">${m.label}</span>`
       : '<span class="pill">New</span>'}<br><span style="font-size:.68rem">${m.pct}%</span></span>
@@ -122,11 +136,11 @@ route('/library', () => {
   app.innerHTML = `
     <h1>Library</h1>
     <div class="search">
-      <input id="q" placeholder="Search 119 cocktails, spirits, garnishes…" autocomplete="off">
+      <input id="q" placeholder="Search ${BUILD.total} cocktails, spirits, garnishes…" autocomplete="off">
       <div class="filters" id="fl">
         ${[['all', 'All'], ['unforgettables', 'Unforgettables'], ['contemporary', 'Contemporary'],
            ['newera', 'New Era'], ['noniba', 'Non-IBA'], ['guide', 'From your guide'],
-           ['iba2024', 'Added from IBA'], ['strong', 'Over 2 std']].map(([v, l]) =>
+           ['iba2024', 'Added from IBA'], ['extra', 'Popular extras'], ['strong', 'Over 2 std']].map(([v, l]) =>
           `<button data-f="${v}" class="${libFilter === v ? 'on' : ''}">${l}</button>`).join('')}
       </div>
     </div>
@@ -135,7 +149,7 @@ route('/library', () => {
   const draw = () => {
     const term = ($('#q').value || '').toLowerCase().trim();
     let out = RECIPES.filter(r => {
-      if (libFilter === 'guide' || libFilter === 'iba2024') { if (r.src !== libFilter) return false; }
+      if (libFilter === 'guide' || libFilter === 'iba2024' || libFilter === 'extra') { if (r.src !== libFilter) return false; }
       else if (libFilter === 'strong') { if (r.abv.std_au < 2) return false; }
       else if (libFilter !== 'all' && r.cat !== libFilter) return false;
       if (!term) return true;
@@ -157,6 +171,132 @@ route('/library', () => {
   draw();
 });
 
+
+function heroHTML(r) {
+  const p = PHOTOS[r.id];
+  if (p && p.file) {
+    const lic = p.licenseUrl ? `<a href="${esc(p.licenseUrl)}" target="_blank" rel="noopener">${esc(p.license)}</a>` : esc(p.license || '');
+    const src = p.source ? ` · <a href="${esc(p.source)}" target="_blank" rel="noopener">Wikimedia Commons</a>` : '';
+    return `<figure class="hero photo"><img src="${esc(p.file)}" alt="${esc(r.name)}">
+      <figcaption>Photo: ${esc(p.credit || 'unknown')} · ${lic}${src}</figcaption></figure>`;
+  }
+  return `<div class="hero art">${glassSVG(r, INGREDIENTS, { size: 150 })}</div>`;
+}
+
+/* --------------------------------------------------------------------- my bar */
+
+/* Two ways in: "Can I make…" (tick what you own, see what's possible, what to buy next)
+   and "Contains" (search every cocktail that uses an ingredient). All local data. */
+let findSel = [];        // ephemeral selection for "Contains" mode
+let findAll = false;     // contains: any chosen ingredient, or all of them
+let showTwo = false;     // can-make: also list drinks missing two ingredients
+
+route('/bar', (deepKey) => {
+  const st = DB.S();
+  if (deepKey) {                       // arrived from an ingredient link on a recipe page
+    st.barMode = 'contains'; findSel = [canonKey(decodeURIComponent(deepKey))]; findAll = false;
+  }
+  const cat = catalogue(RECIPES, INGREDIENTS);
+  const nameOf = (k) => (INGREDIENTS[k] && INGREDIENTS[k].name) || k;
+  const sel = () => st.barMode === 'make' ? st.bar : findSel;
+
+  app.innerHTML = `
+    <h1>My bar</h1>
+    <div class="seg" id="bmode">
+      <button data-m="make" class="${st.barMode === 'make' ? 'on' : ''}">Can I make…</button>
+      <button data-m="contains" class="${st.barMode === 'contains' ? 'on' : ''}">Contains</button>
+    </div>
+    <p class="muted" id="bhelp" style="font-size:.85rem;margin:8px 0 0"></p>
+    <div class="search"><input id="bq" placeholder="Find an ingredient…" autocomplete="off"></div>
+    <div id="bchips"></div>
+    <div id="bout"></div>`;
+
+  const help = () => $('#bhelp').textContent = st.barMode === 'make'
+    ? 'Tap everything you have. You will see what you can make, what is one ingredient away, and what to buy next.'
+    : 'Tap one or more ingredients to see every cocktail that uses them.';
+
+  const drawChips = () => {
+    const term = ($('#bq').value || '').toLowerCase().trim();
+    const on = new Set(sel());
+    const groups = {};
+    for (const c of cat) {
+      if (term && !c.name.toLowerCase().includes(term)) continue;
+      (groups[c.cat] = groups[c.cat] || []).push(c);
+    }
+    $('#bchips').innerHTML = Object.entries(groups).map(([g, items]) => `
+      <h3 class="grp">${CAT_NAME[g]}</h3>
+      <div class="chips">${items.map(c =>
+        `<button class="chip ${on.has(c.k) ? 'on' : ''}" data-k="${esc(c.k)}">${esc(c.name)}<small>${c.count}</small></button>`).join('')}</div>`).join('')
+      || '<p class="muted">No ingredient matches that.</p>';
+  };
+
+  const row = (r, note) => recipeRow(r, note);
+  const drawOut = () => {
+    const have = sel();
+    const out = $('#bout');
+    if (st.barMode === 'contains') {
+      const hits = containing(RECIPES, have, findAll ? 'all' : 'any');
+      out.innerHTML = `
+        <div class="spread" style="margin:14px 0 6px">
+          <b>${have.length ? `${hits.length} cocktail${hits.length === 1 ? '' : 's'}` : 'Pick an ingredient'}</b>
+          ${have.length > 1 ? `<span class="seg small" id="anyall">
+            <button data-a="any" class="${findAll ? '' : 'on'}">Any</button><button data-a="all" class="${findAll ? 'on' : ''}">All</button></span>` : ''}
+          ${have.length ? '<button class="btn ghost small" id="bclear">Clear</button>' : ''}
+        </div>
+        ${hits.map(r => row(r)).join('')}`;
+    } else {
+      const rows = canMake(RECIPES, have, { staples: st.barBasics, maxMissing: 2 });
+      const now = rows.filter(x => !x.missing.length), one = rows.filter(x => x.missing.length === 1),
+        two = rows.filter(x => x.missing.length === 2);
+      const next = buyNext(RECIPES, have, { staples: st.barBasics, limit: 3 });
+      const miss = (x) => 'Missing: ' + x.missing.map(k => esc(nameOf(k))).join(', ');
+      out.innerHTML = `
+        <div class="spread" style="margin:14px 0 6px">
+          <label class="chk"><input type="checkbox" id="bbasics" ${st.barBasics ? 'checked' : ''}> Assume water, salt, sugar, pepper</label>
+          ${have.length ? '<button class="btn ghost small" id="bclear">Clear</button>' : ''}
+        </div>
+        ${!have.length ? '<p class="muted">Nothing selected yet.</p>' : `
+          <div class="card"><b>${now.length}</b> you can make now · <b>${one.length}</b> one ingredient away
+            ${next.length ? `<div class="dim" style="font-size:.82rem;margin-top:6px">Buy next:
+              ${next.map(n => `<b>${esc(nameOf(n.k))}</b> unlocks ${n.unlocks.length} (${n.unlocks.slice(0, 3).map(r => esc(r.name)).join(', ')}${n.unlocks.length > 3 ? '…' : ''})`).join(' · ')}</div>` : ''}
+          </div>
+          ${now.length ? `<h3 class="grp">You can make now</h3>${now.map(x => row(x.r)).join('')}` : ''}
+          ${one.length ? `<h3 class="grp">One ingredient away</h3>${one.map(x => row(x.r, miss(x))).join('')}` : ''}
+          ${two.length ? (showTwo ? `<h3 class="grp">Two away</h3>${two.map(x => row(x.r, miss(x))).join('')}`
+            : `<button class="btn ghost" id="showtwo">Show ${two.length} drinks missing two ingredients</button>`) : ''}`}`;
+    }
+    out.querySelectorAll('[data-go]').forEach(b => b.onclick = () => location.hash = b.dataset.go);
+  };
+
+  const toggle = (k) => {
+    const list = sel(); const i = list.indexOf(k);
+    if (i >= 0) list.splice(i, 1); else list.push(k);
+    if (st.barMode === 'make') DB.save();
+  };
+
+  $('#bmode').onclick = (e) => {
+    const b = e.target.closest('[data-m]'); if (!b) return;
+    st.barMode = b.dataset.m; DB.save();
+    $('#bmode').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    help(); drawChips(); drawOut();
+  };
+  $('#bq').oninput = drawChips;
+  $('#bchips').onclick = (e) => {
+    const c = e.target.closest('[data-k]'); if (!c) return;
+    toggle(c.dataset.k); c.classList.toggle('on'); drawOut();
+  };
+  $('#bout').onclick = (e) => {
+    const t = e.target;
+    if (t.id === 'bclear') { sel().length = 0; if (st.barMode === 'make') DB.save(); drawChips(); drawOut(); }
+    else if (t.id === 'showtwo') { showTwo = true; drawOut(); }
+    else if (t.closest && t.closest('#anyall') && t.dataset.a) { findAll = t.dataset.a === 'all'; drawOut(); }
+  };
+  $('#bout').onchange = (e) => {
+    if (e.target.id === 'bbasics') { st.barBasics = e.target.checked; DB.save(); drawOut(); }
+  };
+  help(); drawChips(); drawOut();
+});
+
 /* ----------------------------------------------------------------- recipe */
 
 route('/recipe', (id) => {
@@ -168,10 +308,11 @@ route('/recipe', (id) => {
   app.innerHTML = `
     <button class="btn ghost small" data-go="#/library">← Library</button>
     <h1 style="margin-top:12px">${esc(r.name)}</h1>
+    ${heroHTML(r)}
     <div class="row wrap" style="margin-bottom:10px">
       <span class="pill gold">${CAT_LABEL[r.cat]}</span>
       <span class="pill">${r.family}</span>
-      <span class="pill ${r.src === 'guide' ? '' : 'blue'}">${r.src === 'guide' ? 'From your guide' : 'Added from IBA 2024'}</span>
+      <span class="pill ${r.src === 'guide' ? '' : 'blue'}">${{ guide: 'From your guide', iba2024: 'Added from IBA 2024', extra: 'Popular extra' }[r.src] || r.src}</span>
       <span class="pill ${m.level >= 2 ? 'green' : ''}">${m.label} ${m.pct}%</span>
     </div>
 
@@ -189,7 +330,7 @@ route('/recipe', (id) => {
       </div>
       ${r.ings.map(i => `<div class="ingline">
         <span class="amt">${i.q == null ? 'fill' : i.q + ' ' + unitLabel(i)}</span>
-        <span class="nm2">${esc(i.l)}${i.abv ? `<span class="dim" style="font-size:.75rem"> · ${i.abv}%</span>` : ''}</span>
+        <span class="nm2"><a class="inglink" href="#/bar/${encodeURIComponent(i.k)}">${esc(i.l)}</a>${i.abv ? `<span class="dim" style="font-size:.75rem"> · ${i.abv}%</span>` : ''}</span>
         <span class="pct">${i.abv && a.absolute_ml ? Math.round((i.q * i.abv / 100) / a.absolute_ml * 100) + '%' : ''}</span>
       </div>`).join('')}
       <p class="dim" style="font-size:.82rem;margin:9px 0 0"><b>Garnish:</b> ${esc(r.garnish || 'None')}</p>

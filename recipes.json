@@ -8862,5 +8862,177 @@
   "story": "A modern Italian cocktail added to the IBA list in 2020, built on grappa with honey and chamomile — deliberately showcasing Italian ingredients in the way the list has begun to do with newer national classics.",
   "taste": "Grappa's clean grape heat, chamomile's soft floral sweetness, lemon and an optional egg-white foam. Delicate and aromatic; the chamomile is doing the work that sugar usually does.",
   "myth": null
+ },
+ {
+  "id": "amaretto-sour",
+  "name": "Amaretto Sour",
+  "printedAs": null,
+  "cat": "noniba",
+  "src": "extra",
+  "conf": "med",
+  "flag": null,
+  "glass": "rocks",
+  "icePrep": "cubes",
+  "iceServe": "cubes",
+  "vessel": "shaker",
+  "strain": "fine",
+  "tech": [
+   {
+    "t": "dry-shake",
+    "s": 10
+   },
+   {
+    "t": "shake",
+    "s": 10
+   }
+  ],
+  "garnish": "Orange slice and a cherry",
+  "ings": [
+   {
+    "k": "amaretto",
+    "q": 50.0,
+    "u": "ml",
+    "l": "Amaretto",
+    "ml": 50.0,
+    "abv": 28.0
+   },
+   {
+    "k": "lemon juice",
+    "q": 25.0,
+    "u": "ml",
+    "l": "Fresh Lemon Juice",
+    "ml": 25.0,
+    "abv": 0
+   },
+   {
+    "k": "simple syrup",
+    "q": 5.0,
+    "u": "ml",
+    "l": "Simple Syrup",
+    "ml": 5.0,
+    "abv": 0
+   },
+   {
+    "k": "egg white",
+    "q": 15.0,
+    "u": "ml",
+    "l": "Fresh Egg White",
+    "ml": 15.0,
+    "abv": 0
+   },
+   {
+    "k": "angostura",
+    "q": 1.0,
+    "u": "dash",
+    "l": "Angostura Bitters",
+    "ml": 0.9,
+    "abv": 44.7
+   }
+  ],
+  "method": "Dry-shake all ingredients without ice for 10 seconds to build the foam. Add ice and shake hard for another 10 seconds. Fine strain over fresh ice in a rocks glass. Garnish with an orange slice and a cherry.",
+  "family": "egg-white",
+  "abv": {
+   "absolute_ml": 14.4,
+   "absolute_g": 11.36,
+   "volume_pre_ml": 95.9,
+   "volume_served_ml": 117.0,
+   "abv_pre": 15.02,
+   "abv_served": 12.31,
+   "dilution_pct": 22.0,
+   "std_au": 1.14,
+   "std_us": 0.81,
+   "has_top": false
+  },
+  "story": "The sour template (spirit, citrus, sugar) applied to almond liqueur. It is usually dated to the 1970s, when Italian amaretto was marketed hard in the United States, and for decades it was made with bottled sour mix and had the reputation to match. Bartender Jeffrey Morgenthaler's 2012 rework, with fresh lemon, a splash of high-proof bourbon and egg white, is the version most bars now follow; the spec here is the simpler fresh-lemon, egg-white form.",
+  "taste": "Marzipan and toasted almond held up by sharp lemon, with the egg white giving a silky body and a fine foam. Made with fresh lemon it is balanced and nutty; made with sour mix it is cloying.",
+  "myth": "Its invention is often credited to amaretto brands' 1970s marketing, but no single bartender or bar has been documented as the creator."
+ },
+ {
+  "id": "picante-de-la-casa",
+  "name": "Picante de la Casa",
+  "printedAs": null,
+  "cat": "noniba",
+  "src": "extra",
+  "conf": "low",
+  "flag": null,
+  "glass": "rocks",
+  "icePrep": "cubes",
+  "iceServe": "cubes",
+  "vessel": "shaker",
+  "strain": "fine",
+  "tech": [
+   {
+    "t": "muddle",
+    "s": null
+   },
+   {
+    "t": "shake",
+    "s": 12
+   },
+   {
+    "t": "rim",
+    "s": null
+   }
+  ],
+  "garnish": "Chilli-salt rim and a jalapeño slice",
+  "ings": [
+   {
+    "k": "tequila blanco",
+    "q": 50.0,
+    "u": "ml",
+    "l": "Tequila Blanco",
+    "ml": 50.0,
+    "abv": 40.0
+   },
+   {
+    "k": "cointreau",
+    "q": 15.0,
+    "u": "ml",
+    "l": "Cointreau",
+    "ml": 15.0,
+    "abv": 40.0
+   },
+   {
+    "k": "lime juice",
+    "q": 25.0,
+    "u": "ml",
+    "l": "Fresh Lime Juice",
+    "ml": 25.0,
+    "abv": 0
+   },
+   {
+    "k": "agave syrup",
+    "q": 10.0,
+    "u": "ml",
+    "l": "Agave Syrup",
+    "ml": 10.0,
+    "abv": 0
+   },
+   {
+    "k": "chili",
+    "q": 1,
+    "u": "count",
+    "l": "2-3 slices of fresh Jalapeño or red chilli",
+    "ml": 7.5,
+    "abv": 0
+   }
+  ],
+  "method": "Rim a rocks glass with chilli salt. Gently muddle the chilli slices with the agave syrup in a shaker. Add tequila, Cointreau, lime juice and ice, and shake hard for 12 seconds. Fine strain over fresh ice into the prepared glass.",
+  "family": "shaken",
+  "abv": {
+   "absolute_ml": 26.0,
+   "absolute_g": 20.51,
+   "volume_pre_ml": 107.5,
+   "volume_served_ml": 131.2,
+   "abv_pre": 24.19,
+   "abv_served": 19.82,
+   "dilution_pct": 22.0,
+   "std_au": 2.05,
+   "std_us": 1.47,
+   "has_top": false
+  },
+  "story": "The name is Spanish for 'the house's spicy one': a Margarita with fresh chilli muddled in. It is a bar-menu staple of the 2000s and 2010s, and sources disagree about who first served it under this name and when, so treat its history as unsettled.",
+  "taste": "A Margarita with real heat: lime and agave up front, a green vegetal chilli note, and the spice building toward the finish. The chilli-salt rim keeps the heat coming sip after sip.",
+  "myth": "Not a single fixed classic: 'spicy Margarita' is a template, and drinks sold as Picante differ in chilli, sweetener and orange liqueur."
  }
 ]

@@ -3,7 +3,7 @@
 .webmanifest served as text/plain will not register."""
 import http.server, socketserver, sys, os
 
-ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cocktail-game')
+ROOT = os.path.dirname(os.path.abspath(__file__))   # flat layout: this folder is the app
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 
 TYPES = {
@@ -14,6 +14,8 @@ TYPES = {
     '.json': 'application/json; charset=utf-8',
     '.webmanifest': 'application/manifest+json; charset=utf-8',
     '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.webp': 'image/webp',
     '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon',
     '.txt': 'text/plain; charset=utf-8',

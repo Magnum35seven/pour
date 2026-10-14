@@ -6,7 +6,7 @@
    If the network is offline, fails, or takes longer than 4 s, the cached copy
    is used instead, so the app still works fully offline. */
 
-const VERSION = 'pour-v3';   // only bump to force-purge old caches
+const VERSION = 'pour-v4';   // only bump to force-purge old caches
 const SHELL = [
   './',
   './index.html',
@@ -17,16 +17,30 @@ const SHELL = [
   './game.js',
   './boss.js',
   './data.js',
+  './finder.js',
+  './art.js',
+  './photos.json',
   './icon-192.png',
   './icon-512.png',
   './maskable-512.png',
 ];
 const NETWORK_TIMEOUT_MS = 4000;
 
+/* Licensed recipe photos (listed in photos.json) are cached up front so they work offline.
+   Best effort: a missing photo never stops the app installing. */
+function precachePhotos(cache) {
+  return fetch('./photos.json', { cache: 'no-cache' })
+    .then(r => r.ok ? r.json() : {})
+    .then(map => Promise.all(Object.values(map).filter(p => p && p.file)
+      .map(p => cache.add(new Request('./' + p.file, { cache: 'reload' })).catch(() => {}))))
+    .catch(() => {});
+}
+
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(VERSION)
-      .then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' }))))
+      .then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))
+        .then(() => precachePhotos(c)))
       .then(() => self.skipWaiting())
   );
 });

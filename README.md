@@ -1,4 +1,4 @@
-# Pour — Learn 119 Cocktails
+# Pour — Learn 121 Cocktails
 
 A fully offline, installable PWA for learning the cocktail canon by *doing*: pick the glass, the ice,
 the vessel, pour every ingredient to the exact line, choose the technique, the strain and the garnish —
@@ -7,23 +7,29 @@ Gauntlet** is the boss fight.
 
 ## Run it
 
+The project is a flat folder (no build step). Serve it with any static server:
+
 ```
-python3 ../serve.py 8080      # from this folder's parent, or:
-python3 serve.py 8080         # serve.py lives one level up and serves ./cocktail-game
+python3 -m http.server 8080      # then open http://127.0.0.1:8080/
 ```
 
-Open `http://127.0.0.1:8080/`, or the sandbox preview URL. Add to home screen / install for the
-standalone PWA. It works fully offline via a service worker.
+(`serve.py` also works.) Add to home screen / install for the standalone PWA. It works fully offline via
+a service worker, and **updates itself**: it fetches fresh files whenever you are online, so every
+commit you push appears the next time the app is opened. Only bump `VERSION` in `sw.js` if you want to
+force-purge old cached files.
 
 Tests (real DOM, real app modules, via jsdom):
 
 ```
-cd cocktail-game && node test/app.test.mjs    # 66 assertions
+npm install
+node app.test.mjs                # app, finder, art, service-worker file list
+python3 test_fetch_photos.py     # the photo collector, offline
 ```
 
 ## What's in the data
 
-- **119 recipes** = 93 from your uploaded guide **+ 26 IBA-official cocktails the guide was missing**,
+- **121 recipes** = 93 from your uploaded guide **+ 26 IBA-official cocktails the guide was missing +
+  2 popular extras** (Amaretto Sour, Picante de la Casa),
   so the current 102-drink IBA list is fully covered (the guide only contained ~75 of them; see below).
 - Every recipe carries: ingredients (mL/dashes with labelled ABV per ingredient), glass, prep ice,
   serve ice, vessel, technique(s) with timings, strain, garnish, family.
@@ -57,15 +63,37 @@ Ve.n.to.
 
 1. **Drill** – a daily queue weighted by what you've never tried and where you keep erring; XP, ranks,
    badges, decision- and pour-accuracy.
-2. **Library** – search + filter all 119 (by category, by source, by strength). Each recipe page shows
+2. **Library** – search + filter all 121 (by category, by source, by strength). Each recipe page shows
    the build, the alcohol panel, tasting notes, backstory and myth check.
-3. **Play** – the round: glass → ice → vessel → prep → pours (hold-to-pour minigame, "feel mode" hides the
+3. **My bar** – tap the ingredients you own to see what you can make now, what is one ingredient away,
+   and what to buy next (it names the single bottle that unlocks the most drinks). Switch to *Contains*
+   to list every cocktail that uses an ingredient; ingredient names on a recipe page link straight to it.
+   Entirely local: no API, no key, works offline.
+4. **Play** – the round: glass → ice → vessel → prep → pours (hold-to-pour minigame, "feel mode" hides the
    number until you release) → method → timing → strain → garnish. Streak multiplier; everything wrong is
    logged to the taxonomy in `Mistakes`.
-4. **Boss** – the Martini Gauntlet: 15 martini-family drinks, the boss has 100 HP, correct answers hurt
+5. **Boss** – the Martini Gauntlet: 15 martini-family drinks, the boss has 100 HP, correct answers hurt
    it, wrong answers heal it.
-5. **Cellar** – log drinks you've made or bought in real life (place, home/away, rating, notes);
+6. **Cellar** – log drinks you've made or bought in real life (place, home/away, rating, notes);
    coverage, average rating and total ethanol for the record.
+
+## Pictures
+
+Every recipe shows a **drawn glass** generated from its own data (glass type, ice, ingredient colours,
+garnish), so nothing is ever blank. Real photos are optional and licence-checked:
+
+```
+python3 fetch_photos.py --limit 10     # try a few first
+python3 fetch_photos.py                # then the rest
+```
+
+`fetch_photos.py` finds each drink's Wikipedia lead image, looks it up on Wikimedia Commons, and keeps it
+**only** if the licence is CC BY, CC BY-SA, CC0 or public domain (NonCommercial / NoDerivs are rejected).
+It saves a compressed copy in `img/` and records photographer, licence and source link in `photos.json`;
+the app displays that credit under the photo. Drinks with no usable photo are listed in
+`photos_missing.txt` and keep the drawn glass. Check the results by eye (a match can occasionally be the
+wrong drink) and pin a better file in `photo_overrides.json`, e.g. `{ "negroni": "File:Name.jpg" }`.
+Commit `img/` and `photos.json` together.
 
 Everything is stored locally (localStorage). No accounts, no server, no analytics.
 

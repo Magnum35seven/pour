@@ -27,6 +27,9 @@ const DEFAULTS = () => ({
   badges: [],
   stats: { answered: 0, correct: 0, pours: 0, pourPerfect: 0, pouredMl: 0 },
   settings: { units: 'ml', showNumbers: false },
+  bar: [],             // ingredient keys the user owns (My bar tab)
+  barMode: 'make',     // 'make' = what can I make, 'contains' = search by ingredient
+  barBasics: true,     // assume water, salt, sugar, pepper
 });
 
 let state = null;

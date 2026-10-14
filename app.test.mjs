@@ -18,7 +18,7 @@ global.confirm = () => false;
 dom.window.confirm = () => false;
 dom.window.scrollTo = () => {};
 
-const { RECIPES, BUILD } = await import('./data.js');
+const { RECIPES, BUILD, INGREDIENTS } = await import('./data.js');
 const game = await import('./game.js');
 const boss = await import('./boss.js');
 const DB = await import('./store.js');
@@ -39,10 +39,10 @@ const nav = async (h) => {
 };
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-console.log(`data: ${RECIPES.length} recipes (guide ${BUILD.guideRecipes} + IBA ${BUILD.ibaAdded})`);
+console.log(`data: ${RECIPES.length} recipes (guide ${BUILD.guideRecipes} + IBA ${BUILD.ibaAdded} + extras ${BUILD.extraAdded})`);
 
 /* ------------------------------------------------------------------ data */
-ok('recipe count is 119', RECIPES.length === 119, `got ${RECIPES.length}`);
+ok('recipe count is 121 and matches BUILD', RECIPES.length === 121 && BUILD.total === 121, `got ${RECIPES.length}`);
 ok('every recipe has editorial content',
   RECIPES.every(r => r.story && r.taste && r.conf));
 ok('every recipe has a resolvable ingredient set',
@@ -67,10 +67,122 @@ ok('app opens on the library tab by default', $('#tabbar a.on')?.dataset.tab ===
   const missing = shell.filter(f => !fs.existsSync(root + '/' + f));
   ok('sw.js precache list points at files that exist', shell.length > 5 && missing.length === 0, missing.join(', '));
 }
+
+/* ---------- new recipes ---------- */
+{
+  const am = RECIPES.find(r => r.id === 'amaretto-sour'), pi = RECIPES.find(r => r.id === 'picante-de-la-casa');
+  ok('Amaretto Sour and Picante de la Casa exist as extras', !!am && !!pi && am.src === 'extra' && pi.src === 'extra');
+  const chk = (r) => {
+    const ab = r.ings.reduce((a, i) => a + i.ml * i.abv / 100, 0);
+    return Math.abs(ab - r.abv.absolute_ml) < 0.02 && Math.abs(r.abv.absolute_g - ab * 0.789) < 0.02;
+  };
+  ok('new recipes have consistent alcohol maths', chk(am) && chk(pi));
+  ok('new recipes use only known ingredients', [am, pi].every(r => r.ings.every(i => INGREDIENTS[i.k])));
+  await nav('#/library');
+  ok('library finds Amaretto Sour by search', (() => { $('#q').value = 'amaretto'; $('#q').oninput(); return $$('#list .rc').some(x => x.textContent.includes('Amaretto Sour')); })());
+  await nav('#/play/amaretto-sour');
+  ok('new recipes are playable', $('#app').innerHTML.length > 200 && !/Not found/.test($('#app').innerHTML));
+}
+
+/* ---------- finder: ingredient search, can-make, buy next ---------- */
+{
+  const F = await import('./finder.js');
+  const cat = F.catalogue(RECIPES, INGREDIENTS);
+  ok('catalogue lists every ingredient used, none duplicated', new Set(cat.map(c => c.k)).size === cat.length && cat.length > 100);
+  ok('catalogue counts are right (gin)', cat.find(c => c.k === 'gin').count === RECIPES.filter(r => r.ings.some(i => i.k === 'gin')).length);
+  ok('cointreau and triple sec are one ingredient', !cat.some(c => c.k === 'triple sec') && F.canonKey('triple sec') === 'cointreau');
+
+  const gin = F.containing(RECIPES, ['gin']);
+  ok('contains: every result uses gin', gin.length > 10 && gin.every(r => r.ings.some(i => i.k === 'gin')));
+  ok('contains: nothing missed', gin.length === RECIPES.filter(r => r.ings.some(i => i.k === 'gin')).length);
+  const both = F.containing(RECIPES, ['gin', 'campari'], 'all');
+  ok('contains all: gin AND campari finds the Negroni, not the Jungle Bird',
+    both.some(r => r.id === 'negroni') && !both.some(r => r.id === 'jungle-bird'));
+  ok('contains any is a superset of all', F.containing(RECIPES, ['gin', 'campari'], 'any').length >= both.length);
+  ok('contains: empty selection returns nothing', F.containing(RECIPES, []).length === 0);
+
+  const mk = F.canMake(RECIPES, ['gin', 'campari', 'vermouth sweet']);
+  const neg = mk.find(x => x.r.id === 'negroni');
+  ok('can make: Negroni from gin + Campari + sweet vermouth', neg && neg.missing.length === 0);
+  ok('can make: results sorted fewest-missing first',
+    mk.every((x, i) => i === 0 || mk[i - 1].missing.length <= x.missing.length));
+  ok('can make: nothing selected means nothing listed', F.canMake(RECIPES, []).length === 0);
+  const dq = F.canMake(RECIPES, ['rum white', 'lime juice'], { staples: true });
+  ok('can make: staples (sugar) assumed, so a Daiquiri works from rum + lime',
+    dq.find(x => x.r.id === 'daiquiri')?.missing.length === 0);
+  const dq2 = F.canMake(RECIPES, ['rum white', 'lime juice'], { staples: false });
+  ok('can make: without staples, the Daiquiri is missing sugar', dq2.find(x => x.r.id === 'daiquiri')?.missing.join() === 'sugar');
+  ok('can make: triple sec satisfies a Cointreau recipe',
+    F.canMake(RECIPES, ['tequila blanco', 'triple sec', 'lime juice']).find(x => x.r.id === 'margarita')?.missing.length === 0);
+  const nx = F.buyNext(RECIPES, ['gin', 'campari']);
+  ok('buy next: sweet vermouth is a top suggestion after gin + Campari',
+    nx.some(n => n.k === 'vermouth sweet') && nx.every(n => n.unlocks.length > 0));
+  ok('buy next: each unlocked drink really is one ingredient away',
+    nx.every(n => n.unlocks.every(r => F.canMake([r], ['gin', 'campari', n.k]).length === 1
+      && F.canMake([r], ['gin', 'campari', n.k])[0].missing.length === 0)));
+}
+
+/* ---------- My bar screen ---------- */
+{
+  DB.S().bar = []; DB.S().barMode = 'make';
+  await nav('#/bar');
+  ok('My bar renders chips', $$('#bchips .chip').length > 100);
+  ok('My bar tab is highlighted', $('#tabbar a.on')?.dataset.tab === 'bar');
+  for (const k of ['gin', 'campari', 'vermouth sweet']) $(`#bchips .chip[data-k="${k}"]`).click();
+  ok('selecting chips shows what you can make', $('#bout').textContent.includes('Negroni') && /you can make now/i.test($('#bout').textContent));
+  ok('selection is remembered in storage', DB.S().bar.length === 3 && JSON.parse(localStorage.getItem('pour.state.v1')).bar.length === 3);
+  ok('buy-next hint is shown', /Buy next/.test($('#bout').textContent));
+  $('#bq').value = 'campari'; $('#bq').oninput();
+  ok('chip search filters ingredients', $$('#bchips .chip').length >= 1 && $$('#bchips .chip').length < 6);
+  $('#bq').value = ''; $('#bq').oninput();
+  $('#bmode button[data-m="contains"]').click();
+  ok('contains mode starts empty and does not reuse your bar', /Pick an ingredient/.test($('#bout').textContent));
+  $('#bchips .chip[data-k="mezcal"]').click();
+  const mezN = RECIPES.filter(r => r.ings.some(i => i.k === 'mezcal')).length;
+  ok('contains mode lists every cocktail with mezcal', $$("#bout .rc").length === mezN && mezN >= 2, `${$$('#bout .rc').length} vs ${mezN}`);
+  DB.S().barMode = 'make';
+  await nav('#/bar/chartreuse%20green');
+  const chN = RECIPES.filter(r => r.ings.some(i => i.k === 'chartreuse green')).length;
+  ok('ingredient links deep-link into contains mode', $$('#bout .rc').length === chN && chN >= 4);
+  await nav('#/recipe/negroni');
+  ok('recipe ingredients link to the ingredient search', $$('#app a.inglink').length === 3 && $('#app a.inglink').getAttribute('href').startsWith('#/bar/'));
+  DB.S().bar = []; DB.S().barMode = 'make'; DB.save();
+}
+
+/* ---------- art and photos ---------- */
+{
+  const A = await import('./art.js');
+  const glasses = [...new Set(RECIPES.map(r => r.glass))];
+  ok('every glass type used has a drawing', glasses.every(g => A.GLASS_SHAPES.includes(g)), glasses.filter(g => !A.GLASS_SHAPES.includes(g)).join());
+  ok('every recipe draws a valid glass', RECIPES.every(r => { const s = A.glassSVG(r, INGREDIENTS); return s.startsWith('<svg') && s.includes('clipPath') && !s.includes('NaN'); }));
+  const neg = A.drinkColour(RECIPES.find(r => r.id === 'negroni'), INGREDIENTS);
+  ok('a Negroni is drawn red, not grey', neg[0] > neg[1] + 40 && neg[0] > neg[2] + 40, neg.map(Math.round).join());
+  const em = A.drinkColour(RECIPES.find(r => r.id === 'espresso-martini'), INGREDIENTS);
+  ok('an Espresso Martini is drawn dark', Math.max(...em) < 120, em.map(Math.round).join());
+  const r0 = RECIPES[0];
+  ok('thumbnail falls back to the drawn glass', A.thumbHTML(r0, INGREDIENTS, {}).startsWith('<svg'));
+  const withPhoto = A.thumbHTML(r0, INGREDIENTS, { [r0.id]: { file: 'img/x.jpg' } });
+  ok('thumbnail uses a photo when there is one', withPhoto.startsWith('<img') && withPhoto.includes('img/x.jpg'));
+  ok('thumbnail escapes a hostile file name', !A.thumbHTML(r0, INGREDIENTS, { [r0.id]: { file: 'a"><script>' } }).includes('<script>'));
+  await nav('#/recipe/negroni');
+  ok('recipe page shows the drawn glass when there is no photo', !!$('#app .hero.art svg'));
+  await nav('#/library');
+  ok('library rows show a thumbnail for every recipe', $$('#list .rc .tw svg, #list .rc .tw img').length === RECIPES.length);
+}
+
+/* ---------- photos.json ---------- */
+{
+  const photos = JSON.parse(fs.readFileSync(root + '/photos.json', 'utf8'));
+  const ids = new Set(RECIPES.map(r => r.id));
+  ok('photos.json only names real recipes', Object.keys(photos).every(k => ids.has(k)));
+  ok('every photo file exists and carries a licence and credit', Object.values(photos).every(p =>
+    fs.existsSync(root + '/' + p.file) && p.license && p.credit && p.source));
+}
+
 await nav('#/drill');
 ok('drill view renders', $('#app').innerHTML.includes('Rank'), '');
 ok('drill shows a practice queue', $$('#app .rc').length >= 5, `${$$('#app .rc').length} rows`);
-ok('tab bar exists', $$('#tabbar a').length === 5);
+ok('tab bar exists with the My bar tab', $$('#tabbar a').length === 6 && !!$('#tabbar a[data-tab="bar"]'));
 
 await nav('#/library');
 ok('library renders all recipes', $$('#list .rc').length === RECIPES.length,
