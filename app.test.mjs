@@ -1,10 +1,10 @@
 /* Drives the real app modules under jsdom: routing, rounds, scoring, mistakes,
-   boss, cellar, persistence. Run with: node test/app.test.mjs */
+   boss, cellar, persistence. Run with: node app.test.mjs */
 import { JSDOM } from 'jsdom';
 import fs from 'node:fs';
 import assert from 'node:assert';
 
-const root = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
+const root = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 const html = fs.readFileSync(root + '/index.html', 'utf8');
 
 const dom = new JSDOM(html, { url: 'https://localhost/', pretendToBeVisual: true });
@@ -18,11 +18,11 @@ global.confirm = () => false;
 dom.window.confirm = () => false;
 dom.window.scrollTo = () => {};
 
-const { RECIPES, BUILD } = await import('../js/data.js');
-const game = await import('../js/game.js');
-const boss = await import('../js/boss.js');
-const DB = await import('../js/store.js');
-await import('../js/app.js');
+const { RECIPES, BUILD } = await import('./data.js');
+const game = await import('./game.js');
+const boss = await import('./boss.js');
+const DB = await import('./store.js');
+await import('./app.js');
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];

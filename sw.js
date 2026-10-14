@@ -1,19 +1,19 @@
 /* Offline-first service worker. App shell + data are precached; everything else
    falls back to cache-first then network. */
-const VERSION = 'pour-v1';
+const VERSION = 'pour-v2';
 const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './css/app.css',
-  './js/app.js',
-  './js/store.js',
-  './js/game.js',
-  './js/boss.js',
-  './js/data.js',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/maskable-512.png',
+  './app.css',
+  './app.js',
+  './store.js',
+  './game.js',
+  './boss.js',
+  './data.js',
+  './icon-192.png',
+  './icon-512.png',
+  './maskable-512.png',
 ];
 
 self.addEventListener('install', (e) => {
