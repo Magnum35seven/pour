@@ -9,6 +9,16 @@ import { thumbHTML, glassSVG, glassSample } from './art.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app');
+
+/* The tab bar sits fixed at the top; keep the page offset equal to its real height. */
+const tabbar = $('#tabbar');
+function fitTabs() {
+  const h = tabbar && tabbar.offsetHeight;
+  if (h > 0) document.documentElement.style.setProperty('--toph', h + 'px');
+}
+fitTabs();
+window.addEventListener('resize', fitTabs);
+if (typeof ResizeObserver !== 'undefined' && tabbar) new ResizeObserver(fitTabs).observe(tabbar);
 const byId = Object.fromEntries(RECIPES.map(r => [r.id, r]));
 DB.load();
 

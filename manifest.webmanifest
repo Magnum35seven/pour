@@ -7,8 +7,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#14300e",
-  "theme_color": "#14300e",
+  "background_color": "#12100e",
+  "theme_color": "#12100e",
   "categories": ["education", "games", "food"],
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

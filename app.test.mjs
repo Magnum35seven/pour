@@ -254,6 +254,25 @@ ok('app opens on the library tab by default', $('#tabbar a.on')?.dataset.tab ===
   ok('print stylesheet hides the tab bar and uses columns', /@media print/.test(css) && /#tabbar[^}]*display:none/.test(css.slice(css.indexOf('@media print'))) );
 }
 
+
+/* ---------- readable colours and top tab bar ---------- */
+{
+  const css = fs.readFileSync(root + '/app.css', 'utf8');
+  const v = (name) => (css.match(new RegExp('--' + name + ':\\s*(#[0-9a-fA-F]{6})')) || [])[1];
+  const lum = (h) => { const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255)
+    .map(c => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const bg = v('bg'), card = v('card');
+  ok('gold/amber text is bright on the background and on cards', ratio(v('amber'), bg) >= 12 && ratio(v('amber'), card) >= 11 && ratio(v('gold'), card) >= 10,
+    `${ratio(v('amber'), card).toFixed(1)} ${ratio(v('gold'), card).toFixed(1)}`);
+  ok('muted text meets 7:1 on cards (AAA for small text)', ratio(v('ink3'), card) >= 7 && ratio(v('ink2'), card) >= 10, `${ratio(v('ink3'), card).toFixed(1)}`);
+  const tab = css.slice(css.indexOf('#tabbar{'), css.indexOf('}', css.indexOf('#tabbar{')));
+  ok('tab bar is fixed to the top, not the bottom', /position:fixed/.test(tab) && /top:0/.test(tab) && !/bottom:0/.test(tab));
+  ok('page is pushed below the tab bar', /body\{padding-top:var\(--toph\)/.test(css));
+  ok('sticky search sits under the tab bar', /\.search\{position:sticky;top:var\(--toph\)/.test(css));
+  ok('theme colour matches the dark UI', /#12100e/.test(fs.readFileSync(root + '/index.html', 'utf8')) && /#12100e/.test(fs.readFileSync(root + '/manifest.webmanifest', 'utf8')));
+}
+
 await nav('#/drill');
 ok('drill view renders', $('#app').innerHTML.includes('Rank'), '');
 ok('drill shows a practice queue', $$('#app .rc').length >= 5, `${$$('#app .rc').length} rows`);
